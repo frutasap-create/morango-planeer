@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Planner Morango — AP Frutas</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --verde: #1C9842;
+    --verde-escuro: #166e30;
+    --verde-claro: #e8f5ed;
+    --laranja: #F39200;
+    --laranja-claro: #fff3e0;
+    --cinza: #f5f5f5;
+    --cinza-medio: #e0e0e0;
+    --cinza-escuro: #666;
+    --texto: #1a1a1a;
+    --branco: #ffffff;
+    --vermelho: #d32f2f;
+    --azul: #1565c0;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #f0f4f0;
+    color: var(--texto);
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  header {
+    background: var(--verde);
+    color: white;
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  }
+  header h1 {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+  header .data-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  header input[type="date"] {
+    padding: 6px 10px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--verde-escuro);
+    cursor: pointer;
+  }
+  .btn-hoje {
+    background: var(--laranja);
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  /* TABS */
+  .tabs {
+    display: flex;
+    background: var(--verde-escuro);
+    overflow-x: auto;
+  }
+  .tab {
+    padding: 12px 20px;
+    color: rgba(255,255,255,0.7);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    border-bottom: 3px solid transparent;
+    white-space: nowrap;
+    transition: all 0.2s;
+  }
+  .tab:hover { color: white; }
+  .tab.active {
+    color: white;
+    border-bottom-color: var(--laranja);
+  }
+
+  /* MAIN */
+  main { padding: 16px; max-width: 1200px; margin: 0 auto; }
+
+  .secao { display: none; }
+  .secao.ativa { display: block; }
+
+  /* CARDS DE RESUMO */
+  .cards-resumo {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .card-resumo {
+    background: white;
+    border-radius: 10px;
+    padding: 14px;
+    text-align: center;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    border-top: 3px solid var(--verde);
+  }
+  .card-resumo.laranja { border-top-color: var(--laranja); }
+  .card-resumo.azul { border-top-color: var(--azul); }
+  .card-resumo .valor {
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--verde);
+  }
+  .card-resumo.laranja .valor { color: var(--laranja); }
+  .card-resumo.azul .valor { color: var(--azul); }
+  .card-resumo .label {
+    font-size: 11px;
+    color: var(--cinza-escuro);
+    margin-top: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* TABELAS */
+  .tabela-container {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .tabela-titulo {
+    background: var(--verde);
+    color: white;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .tabela-titulo.laranja { background: var(--laranja); }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  thead th {
+    background: var(--cinza);
+    padding: 8px 6px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: var(--cinza-escuro);
+    border-bottom: 2px solid var(--cinza-medio);
+    white-space: nowrap;
+  }
+  thead th:first-child { text-align: left; padding-left: 12px; }
+
+  tbody tr:hover { background: var(--verde-claro); }
+  tbody tr:last-child td { border-bottom: none; }
+
+  tbody td {
+    padding: 6px 4px;
+    border-bottom: 1px solid var(--cinza-medio);
+    text-align: center;
+    vertical-align: middle;
+  }
+  tbody td:first-child {
+    text-align: left;
+    padding-left: 12px;
+    font-weight: 600;
+    color: var(--verde-escuro);
+    white-space: nowrap;
+  }
+
+  /* INPUTS NA TABELA */
+  input.qty {
+    width: 60px;
+    padding: 4px 6px;
+    border: 1px solid var(--cinza-medio);
+    border-radius: 5px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--texto);
+    background: var(--cinza);
+    transition: all 0.15s;
+  }
+  input.qty:focus {
+    outline: none;
+    border-color: var(--verde);
+    background: white;
+    box-shadow: 0 0 0 2px rgba(28,152,66,0.15);
+  }
+  input.qty.editado {
+    background: #fffde7;
+    border-color: var(--laranja);
+  }
+
+  /* LINHA DE TOTAL */
+  tr.total-row td {
+    font-weight: 800;
+    background: var(--verde-claro);
+    color: var(--verde-escuro);
+    border-top: 2px solid var(--verde);
+  }
+  tr.total-row td:first-child { color: var(--verde-escuro); }
+
+  /* LINHA DE ESTOQUE */
+  tr.estoque-row td {
+    background: #e3f2fd;
+    color: var(--azul);
+    font-weight: 700;
+  }
+
+  /* BOTÃO SALVAR */
+  .btn-salvar {
+    background: var(--verde);
+    color: white;
+    border: none;
+    padding: 12px 28px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    display: block;
+    margin: 0 auto 20px;
+    box-shadow: 0 2px 8px rgba(28,152,66,0.3);
+    transition: all 0.2s;
+  }
+  .btn-salvar:hover { background: var(--verde-escuro); transform: translateY(-1px); }
+  .btn-salvar:active { transform: translateY(0); }
+  .btn-salvar:disabled { background: var(--cinza-medio); cursor: not-allowed; transform: none; box-shadow: none; }
+
+  /* TOAST */
+  .toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--verde-escuro);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    z-index: 1000;
+    transition: transform 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+  .toast.erro { background: var(--vermelho); }
+  .toast.visivel { transform: translateX(-50%) translateY(0); }
+
+  /* ESTOQUE FUTURO */
+  .estoque-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .estoque-card {
+    background: white;
+    border-radius: 10px;
+    padding: 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    border-left: 4px solid var(--verde);
+  }
+  .estoque-card.negativo { border-left-color: var(--vermelho); }
+  .estoque-card.zero { border-left-color: var(--laranja); }
+  .estoque-card .produto-nome {
+    font-size: 12px;
+    color: var(--cinza-escuro);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+  }
+  .estoque-card .saldo {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--verde);
+  }
+  .estoque-card.negativo .saldo { color: var(--vermelho); }
+  .estoque-card.zero .saldo { color: var(--laranja); }
+  .estoque-card .detalhes {
+    font-size: 11px;
+    color: var(--cinza-escuro);
+    margin-top: 6px;
+    line-height: 1.6;
+  }
+
+  /* CADASTROS */
+  .cadastro-grupo {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .cadastro-titulo {
+    background: var(--verde);
+    color: white;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .cadastro-lista { padding: 12px; }
+  .cadastro-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    border-radius: 6px;
+    margin-bottom: 4px;
+    background: var(--cinza);
+  }
+  .cadastro-item.inativo { opacity: 0.5; }
+  .cadastro-item-nome { font-weight: 600; font-size: 14px; }
+  .cadastro-item-acoes { display: flex; gap: 6px; }
+  .btn-acao {
+    padding: 4px 10px;
+    border: none;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .btn-toggle { background: var(--laranja-claro); color: var(--laranja); }
+  .btn-toggle.ativo { background: var(--verde-claro); color: var(--verde); }
+
+  .cadastro-novo {
+    display: flex;
+    gap: 8px;
+    padding: 12px;
+    border-top: 1px solid var(--cinza-medio);
+  }
+  .cadastro-novo input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid var(--cinza-medio);
+    border-radius: 6px;
+    font-size: 14px;
+  }
+  .cadastro-novo input:focus {
+    outline: none;
+    border-color: var(--verde);
+    box-shadow: 0 0 0 2px rgba(28,152,66,0.15);
+  }
+  .btn-adicionar {
+    background: var(--verde);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  /* LOADING */
+  .loading {
+    text-align: center;
+    padding: 40px;
+    color: var(--cinza-escuro);
+    font-size: 15px;
+  }
+  .spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--cinza-medio);
+    border-top-color: var(--verde);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 12px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* RESPONSIVE */
+  @media (max-width: 600px) {
+    header { flex-direction: column; gap: 10px; }
+    input.qty { width: 50px; font-size: 12px; }
+    thead th { font-size: 10px; padding: 6px 3px; }
+    tbody td { padding: 5px 3px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🍓 Planner Morango — AP Frutas</h1>
+  <div class="data-selector">
+    <input type="date" id="dataSelecionada">
+    <button class="btn-hoje" onclick="irParaHoje()">Hoje</button>
+  </div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" onclick="mudarAba('entradas', this)">📥 Entradas</div>
+  <div class="tab" onclick="mudarAba('saidas', this)">📤 Saídas</div>
+  <div class="tab" onclick="mudarAba('estoque', this)">📦 Estoque</div>
+  <div class="tab" onclick="mudarAba('cadastros', this)">⚙️ Cadastros</div>
+</div>
+
+<main>
+
+  <!-- ABA ENTRADAS -->
+  <div id="secao-entradas" class="secao ativa">
+    <div class="cards-resumo" id="cards-entradas"></div>
+    <div class="tabela-container">
+      <div class="tabela-titulo">📥 Entradas do Dia</div>
+      <div id="tabela-entradas-wrap">
+        <div class="loading"><div class="spinner"></div>Carregando...</div>
+      </div>
+    </div>
+    <button class="btn-salvar" onclick="salvarEntradas()">💾 Salvar Entradas</button>
+  </div>
+
+  <!-- ABA SAÍDAS -->
+  <div id="secao-saidas" class="secao">
+    <div class="cards-resumo" id="cards-saidas"></div>
+    <div class="tabela-container">
+      <div class="tabela-titulo laranja">📤 Saídas do Dia</div>
+      <div id="tabela-saidas-wrap">
+        <div class="loading"><div class="spinner"></div>Carregando...</div>
+      </div>
+    </div>
+    <button class="btn-salvar" onclick="salvarSaidas()" style="background:var(--laranja);">💾 Salvar Saídas</button>
+  </div>
+
+  <!-- ABA ESTOQUE -->
+  <div id="secao-estoque" class="secao">
+    <div class="cards-resumo" id="cards-estoque-resumo"></div>
+    <div id="estoque-conteudo">
+      <div class="loading"><div class="spinner"></div>Calculando estoque...</div>
+    </div>
+  </div>
+
+  <!-- ABA CADASTROS -->
+  <div id="secao-cadastros" class="secao">
+    <div id="cadastros-conteudo">
+      <div class="loading"><div class="spinner"></div>Carregando cadastros...</div>
+    </div>
+  </div>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://cagorqpetzsgmttkvlcm.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_N3Y-dergVFNGpb-qZWjDHQ_46YHsdb4';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ===================== ESTADO GLOBAL =====================
+let produtos = [];
+let fornecedores = [];
+let clientes = [];
+let dataSel = '';
+
+// Dados do dia
+let entradasDia = {}; // { fornecedor_id: { produto_id: quantidade } }
+let saidasDia = {};   // { cliente_id: { produto_id: { l1, l2 } } }
+
+// ===================== INIT =====================
+window.addEventListener('DOMContentLoaded', async () => {
+  const hoje = new Date().toISOString().split('T')[0];
+  document.getElementById('dataSelecionada').value = hoje;
+  dataSel = hoje;
+
+  document.getElementById('dataSelecionada').addEventListener('change', async (e) => {
+    dataSel = e.target.value;
+    await carregarTudo();
+  });
+
+  await carregarCadastros();
+  await carregarTudo();
+});
+
+function irParaHoje() {
+  const hoje = new Date().toISOString().split('T')[0];
+  document.getElementById('dataSelecionada').value = hoje;
+  dataSel = hoje;
+  carregarTudo();
+}
+
+async function carregarCadastros() {
+  const [rp, rf, rc] = await Promise.all([
+    db.from('produtos').select('*').order('ordem'),
+    db.from('fornecedores').select('*').order('nome'),
+    db.from('clientes').select('*').order('nome')
+  ]);
+  produtos = (rp.data || []).filter(p => p.ativo);
+  fornecedores = (rf.data || []).filter(f => f.ativo);
+  clientes = (rc.data || []).filter(c => c.ativo);
+}
+
+async function carregarTudo() {
+  await Promise.all([
+    carregarEntradas(),
+    carregarSaidas(),
+    carregarEstoque()
+  ]);
+}
+
+// ===================== ENTRADAS =====================
+async function carregarEntradas() {
+  const { data } = await db.from('entradas')
+    .select('*')
+    .eq('data', dataSel);
+
+  entradasDia = {};
+  fornecedores.forEach(f => {
+    entradasDia[f.id] = {};
+    produtos.forEach(p => entradasDia[f.id][p.id] = 0);
+  });
+
+  (data || []).forEach(r => {
+    if (entradasDia[r.fornecedor_id]) {
+      entradasDia[r.fornecedor_id][r.produto_id] = r.quantidade || 0;
+    }
+  });
+
+  renderizarEntradas();
+}
+
+function renderizarEntradas() {
+  const wrap = document.getElementById('tabela-entradas-wrap');
+  if (!fornecedores.length || !produtos.length) {
+    wrap.innerHTML = '<div class="loading">Nenhum fornecedor ou produto cadastrado.</div>';
+    return;
+  }
+
+  // Calcular totais por produto
+  const totaisProd = {};
+  produtos.forEach(p => totaisProd[p.id] = 0);
+  fornecedores.forEach(f => {
+    produtos.forEach(p => {
+      totaisProd[p.id] += (entradasDia[f.id]?.[p.id] || 0);
+    });
+  });
+  const totalGeral = Object.values(totaisProd).reduce((a,b) => a+b, 0);
+
+  // Cards
+  document.getElementById('cards-entradas').innerHTML = `
+    <div class="card-resumo">
+      <div class="valor">${totalGeral}</div>
+      <div class="label">Total Entradas</div>
+    </div>
+    ${produtos.map(p => `
+      <div class="card-resumo">
+        <div class="valor">${totaisProd[p.id]}</div>
+        <div class="label">${p.nome}</div>
+      </div>
+    `).join('')}
+  `;
+
+  // Tabela
+  let html = `<table>
+    <thead><tr>
+      <th>Fornecedor</th>
+      ${produtos.map(p => `<th>${p.nome}</th>`).join('')}
+      <th>Total</th>
+    </tr></thead>
+    <tbody>`;
+
+  fornecedores.forEach(f => {
+    const totalForn = produtos.reduce((s, p) => s + (entradasDia[f.id]?.[p.id] || 0), 0);
+    html += `<tr>
+      <td>${f.nome}</td>
+      ${produtos.map(p => `
+        <td><input type="number" class="qty" min="0"
+          value="${entradasDia[f.id]?.[p.id] || 0}"
+          data-forn="${f.id}" data-prod="${p.id}"
+          oninput="atualizarEntrada(this)"
+          onfocus="this.select()">
+        </td>
+      `).join('')}
+      <td id="total-forn-${f.id}" style="font-weight:700;color:var(--verde-escuro)">${totalForn}</td>
+    </tr>`;
+  });
+
+  // Linha total
+  html += `<tr class="total-row">
+    <td>TOTAL</td>
+    ${produtos.map(p => `<td id="total-prod-ent-${p.id}">${totaisProd[p.id]}</td>`).join('')}
+    <td id="total-geral-ent">${totalGeral}</td>
+  </tr></tbody></table>`;
+
+  wrap.innerHTML = html;
+}
+
+function atualizarEntrada(input) {
+  const fid = input.dataset.forn;
+  const pid = input.dataset.prod;
+  const val = parseInt(input.value) || 0;
+
+  if (!entradasDia[fid]) entradasDia[fid] = {};
+  entradasDia[fid][pid] = val;
+  input.classList.add('editado');
+
+  // Atualizar totais na linha
+  const totalForn = produtos.reduce((s, p) => s + (entradasDia[fid]?.[p.id] || 0), 0);
+  const elTF = document.getElementById(`total-forn-${fid}`);
+  if (elTF) elTF.textContent = totalForn;
+
+  // Atualizar total da coluna do produto
+  const totalProd = fornecedores.reduce((s, f) => s + (entradasDia[f.id]?.[pid] || 0), 0);
+  const elTP = document.getElementById(`total-prod-ent-${pid}`);
+  if (elTP) elTP.textContent = totalProd;
+
+  // Total geral
+  const tg = fornecedores.reduce((s, f) => s + produtos.reduce((ss, p) => ss + (entradasDia[f.id]?.[p.id] || 0), 0), 0);
+  const elTG = document.getElementById('total-geral-ent');
+  if (elTG) elTG.textContent = tg;
+
+  // Atualizar cards
+  const cards = document.getElementById('cards-entradas');
+  if (cards) {
+    const totaisProd = {};
+    produtos.forEach(p => totaisProd[p.id] = 0);
+    fornecedores.forEach(f => produtos.forEach(p => totaisProd[p.id] += (entradasDia[f.id]?.[p.id] || 0)));
+    const totalG = Object.values(totaisProd).reduce((a,b) => a+b, 0);
+    cards.innerHTML = `
+      <div class="card-resumo"><div class="valor">${totalG}</div><div class="label">Total Entradas</div></div>
+      ${produtos.map(p => `<div class="card-resumo"><div class="valor">${totaisProd[p.id]}</div><div class="label">${p.nome}</div></div>`).join('')}
+    `;
+  }
+}
+
+async function salvarEntradas() {
+  const btn = document.querySelector('#secao-entradas .btn-salvar');
+  btn.disabled = true;
+  btn.textContent = '⏳ Salvando...';
+
+  try {
+    // Deletar entradas do dia e reinserir
+    await db.from('entradas').delete().eq('data', dataSel);
+
+    const rows = [];
+    fornecedores.forEach(f => {
+      produtos.forEach(p => {
+        const qty = entradasDia[f.id]?.[p.id] || 0;
+        if (qty > 0) {
+          rows.push({ data: dataSel, fornecedor_id: f.id, produto_id: p.id, quantidade: qty });
+        }
+      });
+    });
+
+    if (rows.length > 0) {
+      const { error } = await db.from('entradas').insert(rows);
+      if (error) throw error;
+    }
+
+    await atualizarEstoqueDia();
+    mostrarToast('✅ Entradas salvas com sucesso!');
+
+    // Remover marcações de editado
+    document.querySelectorAll('input.qty.editado').forEach(i => i.classList.remove('editado'));
+  } catch(e) {
+    mostrarToast('❌ Erro ao salvar: ' + e.message, true);
+  }
+
+  btn.disabled = false;
+  btn.textContent = '💾 Salvar Entradas';
+}
+
+// ===================== SAÍDAS =====================
+async function carregarSaidas() {
+  const { data } = await db.from('saidas')
+    .select('*')
+    .eq('data', dataSel);
+
+  saidasDia = {};
+  clientes.forEach(c => {
+    saidasDia[c.id] = {};
+    produtos.forEach(p => {
+      saidasDia[c.id][p.id] = { l1: 0, l2: 0 };
+    });
+  });
+
+  (data || []).forEach(r => {
+    if (saidasDia[r.cliente_id]) {
+      const linha = r.linha === 2 ? 'l2' : 'l1';
+      saidasDia[r.cliente_id][r.produto_id][linha] = r.quantidade || 0;
+    }
+  });
+
+  renderizarSaidas();
+}
+
+function renderizarSaidas() {
+  const wrap = document.getElementById('tabela-saidas-wrap');
+  if (!clientes.length || !produtos.length) {
+    wrap.innerHTML = '<div class="loading">Nenhum cliente ou produto cadastrado.</div>';
+    return;
+  }
+
+  // Encontrar produto Bdjão
+  const bdjao = produtos.find(p => p.nome.toLowerCase().includes('bdj'));
+
+  // Totais por produto (soma l1+l2 para Bdjão)
+  const totaisProd = {};
+  produtos.forEach(p => totaisProd[p.id] = 0);
+  clientes.forEach(c => {
+    produtos.forEach(p => {
+      const v = saidasDia[c.id]?.[p.id] || { l1: 0, l2: 0 };
+      totaisProd[p.id] += (v.l1 || 0) + (v.l2 || 0);
+    });
+  });
+  const totalGeral = Object.values(totaisProd).reduce((a,b) => a+b, 0);
+
+  // Cards
+  document.getElementById('cards-saidas').innerHTML = `
+    <div class="card-resumo laranja">
+      <div class="valor">${totalGeral}</div>
+      <div class="label">Total Saídas</div>
+    </div>
+    ${produtos.map(p => `
+      <div class="card-resumo laranja">
+        <div class="valor">${totaisProd[p.id]}</div>
+        <div class="label">${p.nome}</div>
+      </div>
+    `).join('')}
+  `;
+
+  let html = `<table>
+    <thead><tr>
+      <th>Cliente</th>
+      ${produtos.map(p => {
+        if (bdjao && p.id === bdjao.id) return `<th>${p.nome} L1</th><th>${p.nome} L2</th><th>${p.nome} Total</th>`;
+        return `<th>${p.nome}</th>`;
+      }).join('')}
+      <th>Total</th>
+    </tr></thead>
+    <tbody>`;
+
+  clientes.forEach(c => {
+    let totalCli = 0;
+    html += `<tr><td>${c.nome}</td>`;
+
+    produtos.forEach(p => {
+      const v = saidasDia[c.id]?.[p.id] || { l1: 0, l2: 0 };
+      if (bdjao && p.id === bdjao.id) {
+        const soma = (v.l1 || 0) + (v.l2 || 0);
+        totalCli += soma;
+        html += `
+          <td><input type="number" class="qty" min="0" value="${v.l1 || 0}"
+            data-cli="${c.id}" data-prod="${p.id}" data-linha="1"
+            oninput="atualizarSaida(this)" onfocus="this.select()"></td>
+          <td><input type="number" class="qty" min="0" value="${v.l2 || 0}"
+            data-cli="${c.id}" data-prod="${p.id}" data-linha="2"
+            oninput="atualizarSaida(this)" onfocus="this.select()"></td>
+          <td id="soma-bdj-${c.id}" style="font-weight:700">${soma}</td>`;
+      } else {
+        totalCli += (v.l1 || 0);
+        html += `<td><input type="number" class="qty" min="0" value="${v.l1 || 0}"
+          data-cli="${c.id}" data-prod="${p.id}" data-linha="1"
+          oninput="atualizarSaida(this)" onfocus="this.select()"></td>`;
+      }
+    });
+
+    html += `<td id="total-cli-${c.id}" style="font-weight:700;color:var(--laranja)">${totalCli}</td></tr>`;
+  });
+
+  // Total linha
+  html += `<tr class="total-row" style="background:var(--laranja-claro)">
+    <td>TOTAL</td>
+    ${produtos.map(p => {
+      if (bdjao && p.id === bdjao.id) {
+        return `<td id="total-prod-sai-${p.id}-l1">${clientes.reduce((s,c)=>s+(saidasDia[c.id]?.[p.id]?.l1||0),0)}</td>
+                <td id="total-prod-sai-${p.id}-l2">${clientes.reduce((s,c)=>s+(saidasDia[c.id]?.[p.id]?.l2||0),0)}</td>
+                <td id="total-prod-sai-${p.id}">${totaisProd[p.id]}</td>`;
+      }
+      return `<td id="total-prod-sai-${p.id}">${totaisProd[p.id]}</td>`;
+    }).join('')}
+    <td id="total-geral-sai">${totalGeral}</td>
+  </tr></tbody></table>`;
+
+  wrap.innerHTML = html;
+}
+
+function atualizarSaida(input) {
+  const cid = input.dataset.cli;
+  const pid = input.dataset.prod;
+  const linha = input.dataset.linha === '2' ? 'l2' : 'l1';
+  const val = parseInt(input.value) || 0;
+
+  if (!saidasDia[cid]) saidasDia[cid] = {};
+  if (!saidasDia[cid][pid]) saidasDia[cid][pid] = { l1: 0, l2: 0 };
+  saidasDia[cid][pid][linha] = val;
+  input.classList.add('editado');
+
+  const bdjao = produtos.find(p => p.nome.toLowerCase().includes('bdj'));
+
+  // Soma bdjao
+  if (bdjao && pid === bdjao.id) {
+    const soma = (saidasDia[cid][pid].l1 || 0) + (saidasDia[cid][pid].l2 || 0);
+    const elSoma = document.getElementById(`soma-bdj-${cid}`);
+    if (elSoma) elSoma.textContent = soma;
+  }
+
+  // Total cliente
+  const totalCli = produtos.reduce((s, p) => {
+    const v = saidasDia[cid]?.[p.id] || { l1: 0, l2: 0 };
+    return s + (v.l1 || 0) + (v.l2 || 0);
+  }, 0);
+  const elTC = document.getElementById(`total-cli-${cid}`);
+  if (elTC) elTC.textContent = totalCli;
+
+  // Total produto
+  const totP = clientes.reduce((s, c) => {
+    const v = saidasDia[c.id]?.[pid] || { l1: 0, l2: 0 };
+    return s + (v.l1 || 0) + (v.l2 || 0);
+  }, 0);
+  const elTP = document.getElementById(`total-prod-sai-${pid}`);
+  if (elTP) elTP.textContent = totP;
+
+  // Total geral
+  const tg = clientes.reduce((s, c) => s + produtos.reduce((ss, p) => {
+    const v = saidasDia[c.id]?.[p.id] || { l1: 0, l2: 0 };
+    return ss + (v.l1 || 0) + (v.l2 || 0);
+  }, 0), 0);
+  const elTG = document.getElementById('total-geral-sai');
+  if (elTG) elTG.textContent = tg;
+}
+
+async function salvarSaidas() {
+  const btn = document.querySelector('#secao-saidas .btn-salvar');
+  btn.disabled = true;
+  btn.textContent = '⏳ Salvando...';
+
+  try {
+    await db.from('saidas').delete().eq('data', dataSel);
+
+    const rows = [];
+    clientes.forEach(c => {
+      produtos.forEach(p => {
+        const v = saidasDia[c.id]?.[p.id] || { l1: 0, l2: 0 };
+        if (v.l1 > 0) rows.push({ data: dataSel, cliente_id: c.id, produto_id: p.id, quantidade: v.l1, linha: 1 });
+        if (v.l2 > 0) rows.push({ data: dataSel, cliente_id: c.id, produto_id: p.id, quantidade: v.l2, linha: 2 });
+      });
+    });
+
+    if (rows.length > 0) {
+      const { error } = await db.from('saidas').insert(rows);
+      if (error) throw error;
+    }
+
+    await atualizarEstoqueDia();
+    mostrarToast('✅ Saídas salvas com sucesso!');
+    document.querySelectorAll('input.qty.editado').forEach(i => i.classList.remove('editado'));
+  } catch(e) {
+    mostrarToast('❌ Erro ao salvar: ' + e.message, true);
+  }
+
+  btn.disabled = false;
+  btn.textContent = '💾 Salvar Saídas';
+}
+
+// ===================== ESTOQUE =====================
+async function atualizarEstoqueDia() {
+  // Buscar estoque anterior (dia anterior)
+  const dataAnterior = new Date(dataSel);
+  dataAnterior.setDate(dataAnterior.getDate() - 1);
+  const dataAntStr = dataAnterior.toISOString().split('T')[0];
+
+  const { data: estoqueAnt } = await db.from('estoque')
+    .select('*')
+    .eq('data', dataAntStr);
+
+  const estAntMap = {};
+  (estoqueAnt || []).forEach(e => estAntMap[e.produto_id] = e.saldo || 0);
+
+  // Calcular entradas e saídas do dia
+  const { data: entDia } = await db.from('entradas').select('*').eq('data', dataSel);
+  const { data: saiDia } = await db.from('saidas').select('*').eq('data', dataSel);
+
+  const totEnt = {};
+  const totSai = {};
+  produtos.forEach(p => { totEnt[p.id] = 0; totSai[p.id] = 0; });
+
+  (entDia || []).forEach(r => { if (totEnt[r.produto_id] !== undefined) totEnt[r.produto_id] += r.quantidade || 0; });
+  (saiDia || []).forEach(r => { if (totSai[r.produto_id] !== undefined) totSai[r.produto_id] += r.quantidade || 0; });
+
+  // Upsert estoque
+  await db.from('estoque').delete().eq('data', dataSel);
+
+  const rows = produtos.map(p => ({
+    data: dataSel,
+    produto_id: p.id,
+    estoque_anterior: estAntMap[p.id] || 0,
+    total_entradas: totEnt[p.id] || 0,
+    total_saidas: totSai[p.id] || 0,
+    saldo: (estAntMap[p.id] || 0) + (totEnt[p.id] || 0) - (totSai[p.id] || 0)
+  }));
+
+  await db.from('estoque').insert(rows);
+}
+
+async function carregarEstoque() {
+  const conteudo = document.getElementById('estoque-conteudo');
+  conteudo.innerHTML = '<div class="loading"><div class="spinner"></div>Calculando estoque...</div>';
+
+  const { data: est } = await db.from('estoque').select('*').eq('data', dataSel);
+
+  if (!est || est.length === 0) {
+    conteudo.innerHTML = '<div class="loading">Nenhum dado de estoque para esta data.<br><small>Salve entradas ou saídas primeiro.</small></div>';
+    document.getElementById('cards-estoque-resumo').innerHTML = '';
+    return;
+  }
+
+  const estMap = {};
+  est.forEach(e => estMap[e.produto_id] = e);
+
+  const totalSaldo = produtos.reduce((s, p) => s + (estMap[p.id]?.saldo || 0), 0);
+  const totalEnt = produtos.reduce((s, p) => s + (estMap[p.id]?.total_entradas || 0), 0);
+  const totalSai = produtos.reduce((s, p) => s + (estMap[p.id]?.total_saidas || 0), 0);
+
+  document.getElementById('cards-estoque-resumo').innerHTML = `
+    <div class="card-resumo azul">
+      <div class="valor">${totalSaldo}</div>
+      <div class="label">Saldo Total</div>
+    </div>
+    <div class="card-resumo">
+      <div class="valor">${totalEnt}</div>
+      <div class="label">Total Entradas</div>
+    </div>
+    <div class="card-resumo laranja">
+      <div class="valor">${totalSai}</div>
+      <div class="label">Total Saídas</div>
+    </div>
+  `;
+
+  let html = '<div class="estoque-grid">';
+  produtos.forEach(p => {
+    const e = estMap[p.id];
+    if (!e) return;
+    const classe = e.saldo < 0 ? 'negativo' : (e.saldo === 0 ? 'zero' : '');
+    html += `
+      <div class="estoque-card ${classe}">
+        <div class="produto-nome">${p.nome}</div>
+        <div class="saldo">${e.saldo}</div>
+        <div class="detalhes">
+          Anterior: ${e.estoque_anterior}<br>
+          + Entradas: ${e.total_entradas}<br>
+          − Saídas: ${e.total_saidas}
+        </div>
+      </div>`;
+  });
+  html += '</div>';
+
+  // Tabela detalhada
+  html += `
+    <div class="tabela-container">
+      <div class="tabela-titulo azul" style="background:var(--azul)">📊 Resumo por Produto</div>
+      <table>
+        <thead><tr>
+          <th>Produto</th>
+          <th>Estoque Anterior</th>
+          <th>+ Entradas</th>
+          <th>− Saídas</th>
+          <th>= Saldo Final</th>
+        </tr></thead>
+        <tbody>
+          ${produtos.map(p => {
+            const e = estMap[p.id];
+            if (!e) return '';
+            const cor = e.saldo < 0 ? 'var(--vermelho)' : (e.saldo === 0 ? 'var(--laranja)' : 'var(--verde)');
+            return `<tr>
+              <td>${p.nome}</td>
+              <td>${e.estoque_anterior}</td>
+              <td style="color:var(--verde);font-weight:700">+${e.total_entradas}</td>
+              <td style="color:var(--laranja);font-weight:700">-${e.total_saidas}</td>
+              <td style="color:${cor};font-weight:800;font-size:15px">${e.saldo}</td>
+            </tr>`;
+          }).join('')}
+          <tr class="total-row">
+            <td>TOTAL</td>
+            <td>${produtos.reduce((s,p)=>s+(estMap[p.id]?.estoque_anterior||0),0)}</td>
+            <td style="color:var(--verde)">+${totalEnt}</td>
+            <td style="color:var(--laranja)">-${totalSai}</td>
+            <td style="color:var(--azul)">${totalSaldo}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>`;
+
+  conteudo.innerHTML = html;
+}
+
+// ===================== CADASTROS =====================
+async function carregarCadastrosUI() {
+  const conteudo = document.getElementById('cadastros-conteudo');
+  conteudo.innerHTML = '<div class="loading"><div class="spinner"></div>Carregando...</div>';
+
+  const [rp, rf, rc] = await Promise.all([
+    db.from('produtos').select('*').order('ordem'),
+    db.from('fornecedores').select('*').order('nome'),
+    db.from('clientes').select('*').order('nome')
+  ]);
+
+  function renderLista(items, tipo) {
+    return items.map(item => `
+      <div class="cadastro-item ${item.ativo ? '' : 'inativo'}">
+        <span class="cadastro-item-nome">${item.nome}</span>
+        <div class="cadastro-item-acoes">
+          <button class="btn-acao btn-toggle ${item.ativo ? 'ativo' : ''}"
+            onclick="toggleCadastro('${tipo}', '${item.id}', ${item.ativo})">
+            ${item.ativo ? '✅ Ativo' : '❌ Inativo'}
+          </button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  conteudo.innerHTML = `
+    <div class="cadastro-grupo">
+      <div class="cadastro-titulo">🌱 Produtos</div>
+      <div class="cadastro-lista">${renderLista(rp.data || [], 'produtos')}</div>
+      <div class="cadastro-novo">
+        <input type="text" id="novo-produto" placeholder="Nome do novo produto...">
+        <button class="btn-adicionar" onclick="adicionarCadastro('produtos', 'novo-produto')">+ Adicionar</button>
+      </div>
+    </div>
+
+    <div class="cadastro-grupo">
+      <div class="cadastro-titulo">🚚 Fornecedores</div>
+      <div class="cadastro-lista">${renderLista(rf.data || [], 'fornecedores')}</div>
+      <div class="cadastro-novo">
+        <input type="text" id="novo-fornecedor" placeholder="Nome do novo fornecedor...">
+        <button class="btn-adicionar" onclick="adicionarCadastro('fornecedores', 'novo-fornecedor')">+ Adicionar</button>
+      </div>
+    </div>
+
+    <div class="cadastro-grupo">
+      <div class="cadastro-titulo">🏪 Clientes</div>
+      <div class="cadastro-lista">${renderLista(rc.data || [], 'clientes')}</div>
+      <div class="cadastro-novo">
+        <input type="text" id="novo-cliente" placeholder="Nome do novo cliente...">
+        <button class="btn-adicionar" onclick="adicionarCadastro('clientes', 'novo-cliente')">+ Adicionar</button>
+      </div>
+    </div>
+  `;
+}
+
+async function toggleCadastro(tabela, id, ativo) {
+  await db.from(tabela).update({ ativo: !ativo }).eq('id', id);
+  await carregarCadastros();
+  await carregarCadastrosUI();
+  mostrarToast(`✅ ${ativo ? 'Desativado' : 'Ativado'} com sucesso!`);
+}
+
+async function adicionarCadastro(tabela, inputId) {
+  const input = document.getElementById(inputId);
+  const nome = input.value.trim();
+  if (!nome) return;
+
+  const row = { nome, ativo: true };
+  if (tabela === 'produtos') {
+    const { data } = await db.from('produtos').select('ordem').order('ordem', { ascending: false }).limit(1);
+    row.ordem = (data?.[0]?.ordem || 0) + 1;
+  }
+
+  const { error } = await db.from(tabela).insert(row);
+  if (error) { mostrarToast('❌ Erro: ' + error.message, true); return; }
+
+  input.value = '';
+  await carregarCadastros();
+  await carregarCadastrosUI();
+  mostrarToast(`✅ ${nome} adicionado!`);
+}
+
+// ===================== NAVEGAÇÃO =====================
+function mudarAba(aba, el) {
+  document.querySelectorAll('.secao').forEach(s => s.classList.remove('ativa'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(`secao-${aba}`).classList.add('ativa');
+  el.classList.add('active');
+
+  if (aba === 'estoque') carregarEstoque();
+  if (aba === 'cadastros') carregarCadastrosUI();
+}
+
+// ===================== TOAST =====================
+function mostrarToast(msg, erro = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast ${erro ? 'erro' : ''} visivel`;
+  setTimeout(() => t.classList.remove('visivel'), 3000);
+}
+</script>
+</body>
+</html>
