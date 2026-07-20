@@ -410,6 +410,7 @@
   <div class="tab active" onclick="mudarAba('entradas', this)">📥 Entradas</div>
   <div class="tab" onclick="mudarAba('saidas', this)">📤 Saídas</div>
   <div class="tab" onclick="mudarAba('estoque', this)">📦 Estoque</div>
+  <div class="tab" onclick="mudarAba('balanco', this)">⚖️ Balanço</div>
   <div class="tab" onclick="mudarAba('cadastros', this)">⚙️ Cadastros</div>
 </div>
 
@@ -444,6 +445,14 @@
     <div class="cards-resumo" id="cards-estoque-resumo"></div>
     <div id="estoque-conteudo">
       <div class="loading"><div class="spinner"></div>Calculando estoque...</div>
+    </div>
+  </div>
+
+  <!-- ABA BALANÇO -->
+  <div id="secao-balanco" class="secao">
+    <div class="cards-resumo" id="cards-balanco"></div>
+    <div id="balanco-conteudo">
+      <div class="loading"><div class="spinner"></div>Calculando balanço...</div>
     </div>
   </div>
 
@@ -914,26 +923,27 @@ async function carregarEstoque() {
   const conteudo = document.getElementById('estoque-conteudo');
   conteudo.innerHTML = '<div class="loading"><div class="spinner"></div>Calculando estoque...</div>';
 
+  // Buscar estoque calculado do dia
   const { data: est } = await db.from('estoque').select('*').eq('data', dataSel);
-
-  if (!est || est.length === 0) {
-    conteudo.innerHTML = '<div class="loading">Nenhum dado de estoque para esta data.<br><small>Salve entradas ou saídas primeiro.</small></div>';
-    document.getElementById('cards-estoque-resumo').innerHTML = '';
-    return;
-  }
+  // Buscar estoque real (editável pelo usuário)
+  const { data: estReal } = await db.from('estoque_real').select('*').eq('data', dataSel);
 
   const estMap = {};
-  est.forEach(e => estMap[e.produto_id] = e);
+  const estRealMap = {};
+  (est || []).forEach(e => estMap[e.produto_id] = e);
+  (estReal || []).forEach(e => estRealMap[e.produto_id] = e);
 
-  const totalSaldo = produtos.reduce((s, p) => s + (estMap[p.id]?.saldo || 0), 0);
   const totalEnt = produtos.reduce((s, p) => s + (estMap[p.id]?.total_entradas || 0), 0);
   const totalSai = produtos.reduce((s, p) => s + (estMap[p.id]?.total_saidas || 0), 0);
+  const totalPrevisao = produtos.reduce((s, p) => {
+    const ei = estRealMap[p.id]?.estoque_inicial ?? estMap[p.id]?.estoque_anterior ?? 0;
+    const ent = estMap[p.id]?.total_entradas || 0;
+    const sai = estMap[p.id]?.total_saidas || 0;
+    return s + ei + ent - sai;
+  }, 0);
+  const totalReal = produtos.reduce((s, p) => s + (estRealMap[p.id]?.estoque_real ?? 0), 0);
 
   document.getElementById('cards-estoque-resumo').innerHTML = `
-    <div class="card-resumo azul">
-      <div class="valor">${totalSaldo}</div>
-      <div class="label">Saldo Total</div>
-    </div>
     <div class="card-resumo">
       <div class="valor">${totalEnt}</div>
       <div class="label">Total Entradas</div>
@@ -942,63 +952,278 @@ async function carregarEstoque() {
       <div class="valor">${totalSai}</div>
       <div class="label">Total Saídas</div>
     </div>
+    <div class="card-resumo azul">
+      <div class="valor">${totalPrevisao}</div>
+      <div class="label">Previsão Final</div>
+    </div>
+    <div class="card-resumo" style="border-top-color:#9c27b0">
+      <div class="valor" style="color:#9c27b0">${totalReal}</div>
+      <div class="label">Real Confirmado</div>
+    </div>
   `;
 
-  let html = '<div class="estoque-grid">';
-  produtos.forEach(p => {
-    const e = estMap[p.id];
-    if (!e) return;
-    const classe = e.saldo < 0 ? 'negativo' : (e.saldo === 0 ? 'zero' : '');
-    html += `
-      <div class="estoque-card ${classe}">
-        <div class="produto-nome">${p.nome}</div>
-        <div class="saldo">${e.saldo}</div>
-        <div class="detalhes">
-          Anterior: ${e.estoque_anterior}<br>
-          + Entradas: ${e.total_entradas}<br>
-          − Saídas: ${e.total_saidas}
-        </div>
-      </div>`;
-  });
-  html += '</div>';
-
-  // Tabela detalhada
-  html += `
+  // Tabela principal
+  let html = `
     <div class="tabela-container">
-      <div class="tabela-titulo azul" style="background:var(--azul)">📊 Resumo por Produto</div>
+      <div class="tabela-titulo azul" style="background:var(--azul)">📦 Estoque do Dia — ${formatarData(dataSel)}</div>
       <table>
         <thead><tr>
           <th>Produto</th>
-          <th>Estoque Anterior</th>
+          <th>Estoque Inicial</th>
           <th>+ Entradas</th>
           <th>− Saídas</th>
-          <th>= Saldo Final</th>
+          <th>= Previsão Final</th>
+          <th>✅ Real</th>
         </tr></thead>
-        <tbody>
-          ${produtos.map(p => {
-            const e = estMap[p.id];
-            if (!e) return '';
-            const cor = e.saldo < 0 ? 'var(--vermelho)' : (e.saldo === 0 ? 'var(--laranja)' : 'var(--verde)');
-            return `<tr>
-              <td>${p.nome}</td>
-              <td>${e.estoque_anterior}</td>
-              <td style="color:var(--verde);font-weight:700">+${e.total_entradas}</td>
-              <td style="color:var(--laranja);font-weight:700">-${e.total_saidas}</td>
-              <td style="color:${cor};font-weight:800;font-size:15px">${e.saldo}</td>
-            </tr>`;
-          }).join('')}
-          <tr class="total-row">
-            <td>TOTAL</td>
-            <td>${produtos.reduce((s,p)=>s+(estMap[p.id]?.estoque_anterior||0),0)}</td>
-            <td style="color:var(--verde)">+${totalEnt}</td>
-            <td style="color:var(--laranja)">-${totalSai}</td>
-            <td style="color:var(--azul)">${totalSaldo}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>`;
+        <tbody>`;
+
+  produtos.forEach(p => {
+    const e = estMap[p.id] || { total_entradas: 0, total_saidas: 0, estoque_anterior: 0 };
+    const er = estRealMap[p.id] || {};
+    const estoqueInicial = er.estoque_inicial ?? e.estoque_anterior ?? 0;
+    const previsao = estoqueInicial + (e.total_entradas || 0) - (e.total_saidas || 0);
+    const real = er.estoque_real ?? '';
+    const corPrev = previsao < 0 ? 'var(--vermelho)' : (previsao === 0 ? 'var(--laranja)' : 'var(--verde)');
+
+    html += `<tr>
+      <td>${p.nome}</td>
+      <td>
+        <input type="number" class="qty" min="0"
+          value="${estoqueInicial}"
+          data-prod="${p.id}" data-campo="inicial"
+          oninput="atualizarEstoqueReal(this)"
+          onfocus="this.select()">
+      </td>
+      <td style="color:var(--verde);font-weight:700">+${e.total_entradas || 0}</td>
+      <td style="color:var(--laranja);font-weight:700">-${e.total_saidas || 0}</td>
+      <td id="prev-${p.id}" style="color:${corPrev};font-weight:800;font-size:15px">${previsao}</td>
+      <td>
+        <input type="number" class="qty" min="0"
+          value="${real}"
+          placeholder="—"
+          data-prod="${p.id}" data-campo="real"
+          oninput="atualizarEstoqueReal(this)"
+          onfocus="this.select()"
+          style="border-color:#9c27b0;width:65px">
+      </td>
+    </tr>`;
+  });
+
+  // Totais
+  const totalIni = produtos.reduce((s, p) => {
+    const e = estMap[p.id] || {};
+    const er = estRealMap[p.id] || {};
+    return s + (er.estoque_inicial ?? e.estoque_anterior ?? 0);
+  }, 0);
+
+  html += `<tr class="total-row">
+    <td>TOTAL</td>
+    <td>${totalIni}</td>
+    <td style="color:var(--verde)">+${totalEnt}</td>
+    <td style="color:var(--laranja)">-${totalSai}</td>
+    <td style="color:var(--azul)">${totalPrevisao}</td>
+    <td style="color:#9c27b0">${totalReal || '—'}</td>
+  </tr></tbody></table></div>`;
+
+  html += `<button class="btn-salvar" onclick="salvarEstoqueReal()" style="background:#1565c0">💾 Salvar Estoque</button>`;
 
   conteudo.innerHTML = html;
+}
+
+function atualizarEstoqueReal(input) {
+  const pid = input.dataset.prod;
+  const campo = input.dataset.campo;
+  const val = parseInt(input.value) || 0;
+  input.classList.add('editado');
+
+  if (campo === 'inicial') {
+    // Recalcular previsão da linha
+    const e = document.querySelector(`[data-prod="${pid}"][data-campo="inicial"]`);
+    const row = e.closest('tr');
+    const cells = row.querySelectorAll('td');
+    // Pegar entradas e saídas da linha (células 2 e 3)
+    const ent = parseInt(cells[2].textContent.replace('+','')) || 0;
+    const sai = parseInt(cells[3].textContent.replace('-','')) || 0;
+    const prev = val + ent - sai;
+    const elPrev = document.getElementById(`prev-${pid}`);
+    if (elPrev) {
+      elPrev.textContent = prev;
+      elPrev.style.color = prev < 0 ? 'var(--vermelho)' : prev === 0 ? 'var(--laranja)' : 'var(--verde)';
+    }
+  }
+}
+
+async function salvarEstoqueReal() {
+  const btn = document.querySelector('#secao-estoque .btn-salvar');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Salvando...'; }
+
+  try {
+    // Coletar todos os valores da tabela
+    const iniciais = document.querySelectorAll('[data-campo="inicial"]');
+    const reais = document.querySelectorAll('[data-campo="real"]');
+
+    await db.from('estoque_real').delete().eq('data', dataSel);
+
+    const rows = [];
+    iniciais.forEach(inp => {
+      const pid = inp.dataset.prod;
+      const realInp = document.querySelector(`[data-prod="${pid}"][data-campo="real"]`);
+      const estoqueInicial = parseInt(inp.value) || 0;
+      const estoqueReal = realInp && realInp.value !== '' ? parseInt(realInp.value) : null;
+      rows.push({
+        data: dataSel,
+        produto_id: pid,
+        estoque_inicial: estoqueInicial,
+        estoque_real: estoqueReal
+      });
+    });
+
+    if (rows.length > 0) {
+      const { error } = await db.from('estoque_real').insert(rows);
+      if (error) throw error;
+    }
+
+    mostrarToast('✅ Estoque salvo com sucesso!');
+    document.querySelectorAll('input.qty.editado').forEach(i => i.classList.remove('editado'));
+  } catch(e) {
+    mostrarToast('❌ Erro ao salvar: ' + e.message, true);
+  }
+
+  if (btn) { btn.disabled = false; btn.textContent = '💾 Salvar Estoque'; }
+}
+
+// ===================== BALANÇO =====================
+async function carregarBalanco() {
+  const conteudo = document.getElementById('balanco-conteudo');
+  conteudo.innerHTML = '<div class="loading"><div class="spinner"></div>Calculando balanço...</div>';
+
+  const [estRes, estRealRes, entRes, saiRes] = await Promise.all([
+    db.from('estoque').select('*').eq('data', dataSel),
+    db.from('estoque_real').select('*').eq('data', dataSel),
+    db.from('entradas').select('*').eq('data', dataSel),
+    db.from('saidas').select('*').eq('data', dataSel)
+  ]);
+
+  const estMap = {};
+  const estRealMap = {};
+  (estRes.data || []).forEach(e => estMap[e.produto_id] = e);
+  (estRealRes.data || []).forEach(e => estRealMap[e.produto_id] = e);
+
+  const totEnt = {};
+  const totSai = {};
+  produtos.forEach(p => { totEnt[p.id] = 0; totSai[p.id] = 0; });
+  (entRes.data || []).forEach(r => { if (totEnt[r.produto_id] !== undefined) totEnt[r.produto_id] += r.quantidade || 0; });
+  (saiRes.data || []).forEach(r => { if (totSai[r.produto_id] !== undefined) totSai[r.produto_id] += r.quantidade || 0; });
+
+  // Calcular saldos
+  let totalSobra = 0, totalFalta = 0, totalNeutro = 0;
+  const saldos = produtos.map(p => {
+    const er = estRealMap[p.id] || {};
+    const e = estMap[p.id] || {};
+    const inicial = er.estoque_inicial ?? e.estoque_anterior ?? 0;
+    const ent = totEnt[p.id] || 0;
+    const sai = totSai[p.id] || 0;
+    const saldo = inicial + ent - sai;
+    if (saldo > 0) totalSobra += saldo;
+    else if (saldo < 0) totalFalta += saldo;
+    else totalNeutro++;
+    return { produto: p, inicial, ent, sai, saldo };
+  });
+
+  // Cards resumo
+  document.getElementById('cards-balanco').innerHTML = `
+    <div class="card-resumo">
+      <div class="valor" style="color:var(--verde)">${totalSobra}</div>
+      <div class="label">Total Sobra</div>
+    </div>
+    <div class="card-resumo laranja">
+      <div class="valor" style="color:var(--vermelho)">${totalFalta}</div>
+      <div class="label">Total Falta</div>
+    </div>
+    <div class="card-resumo azul">
+      <div class="valor">${saldos.filter(s=>s.saldo>0).length}</div>
+      <div class="label">Produtos com Sobra</div>
+    </div>
+    <div class="card-resumo" style="border-top-color:var(--vermelho)">
+      <div class="valor" style="color:var(--vermelho)">${saldos.filter(s=>s.saldo<0).length}</div>
+      <div class="label">Produtos em Falta</div>
+    </div>
+  `;
+
+  // Cards por produto
+  let htmlCards = '<div class="estoque-grid">';
+  saldos.forEach(({ produto, inicial, ent, sai, saldo }) => {
+    const classe = saldo < 0 ? 'negativo' : saldo === 0 ? 'zero' : '';
+    const emoji = saldo > 0 ? '✅' : saldo < 0 ? '❌' : '➡️';
+    const label = saldo > 0 ? 'SOBRA' : saldo < 0 ? 'FALTA' : 'ZERADO';
+    htmlCards += `
+      <div class="estoque-card ${classe}">
+        <div class="produto-nome">${produto.nome}</div>
+        <div class="saldo">${saldo > 0 ? '+' : ''}${saldo}</div>
+        <div style="font-size:11px;font-weight:700;margin-top:2px;color:${saldo>0?'var(--verde)':saldo<0?'var(--vermelho)':'var(--laranja)'}">${emoji} ${label}</div>
+        <div class="detalhes">
+          Inicial: ${inicial}<br>
+          + Entradas: ${ent}<br>
+          − Saídas: ${sai}
+        </div>
+      </div>`;
+  });
+  htmlCards += '</div>';
+
+  // Tabela detalhada
+  let htmlTabela = `
+    <div class="tabela-container">
+      <div class="tabela-titulo" style="background:#37474f">⚖️ Balanço do Dia — ${formatarData(dataSel)}</div>
+      <table>
+        <thead><tr>
+          <th>Produto</th>
+          <th>Estoque Inicial</th>
+          <th>+ Entradas</th>
+          <th>− Saídas</th>
+          <th>= Saldo</th>
+          <th>Situação</th>
+        </tr></thead>
+        <tbody>`;
+
+  saldos.forEach(({ produto, inicial, ent, sai, saldo }) => {
+    const cor = saldo < 0 ? 'var(--vermelho)' : saldo === 0 ? 'var(--laranja)' : 'var(--verde)';
+    const situacao = saldo > 0 ? `<span style="color:var(--verde);font-weight:700">✅ Sobra ${saldo}</span>`
+      : saldo < 0 ? `<span style="color:var(--vermelho);font-weight:700">❌ Falta ${Math.abs(saldo)}</span>`
+      : `<span style="color:var(--laranja);font-weight:700">➡️ Zerado</span>`;
+
+    htmlTabela += `<tr>
+      <td>${produto.nome}</td>
+      <td>${inicial}</td>
+      <td style="color:var(--verde);font-weight:700">+${ent}</td>
+      <td style="color:var(--laranja);font-weight:700">-${sai}</td>
+      <td style="color:${cor};font-weight:800;font-size:15px">${saldo > 0 ? '+' : ''}${saldo}</td>
+      <td>${situacao}</td>
+    </tr>`;
+  });
+
+  const totalIni = saldos.reduce((s, r) => s + r.inicial, 0);
+  const totalEntAll = saldos.reduce((s, r) => s + r.ent, 0);
+  const totalSaiAll = saldos.reduce((s, r) => s + r.sai, 0);
+  const totalSaldo = saldos.reduce((s, r) => s + r.saldo, 0);
+  const corTotal = totalSaldo < 0 ? 'var(--vermelho)' : totalSaldo === 0 ? 'var(--laranja)' : 'var(--verde)';
+
+  htmlTabela += `<tr class="total-row">
+    <td>TOTAL</td>
+    <td>${totalIni}</td>
+    <td style="color:var(--verde)">+${totalEntAll}</td>
+    <td style="color:var(--laranja)">-${totalSaiAll}</td>
+    <td style="color:${corTotal}">${totalSaldo > 0 ? '+' : ''}${totalSaldo}</td>
+    <td style="color:${corTotal};font-weight:800">${totalSaldo > 0 ? '✅ Sobra' : totalSaldo < 0 ? '❌ Falta' : '➡️ Zerado'}</td>
+  </tr></tbody></table></div>`;
+
+  conteudo.innerHTML = htmlCards + htmlTabela;
+}
+
+// ===================== HELPER DATA =====================
+function formatarData(dataStr) {
+  if (!dataStr) return '';
+  const [ano, mes, dia] = dataStr.split('-');
+  return `${dia}/${mes}/${ano}`;
 }
 
 // ===================== CADASTROS =====================
@@ -1091,6 +1316,7 @@ function mudarAba(aba, el) {
   el.classList.add('active');
 
   if (aba === 'estoque') carregarEstoque();
+  if (aba === 'balanco') carregarBalanco();
   if (aba === 'cadastros') carregarCadastrosUI();
 }
 
