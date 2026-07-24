@@ -104,6 +104,20 @@
   .eixo-y { position: absolute; left: 0; top: 0; bottom: 24px; display: flex; flex-direction: column; justify-content: space-between; pointer-events: none; }
   .eixo-label { font-size: 9px; color: var(--cinza-escuro); }
 
+
+  /* GRÁFICOS HORIZONTAIS (fornecedores / clientes) */
+  .grafico-h-container { background: white; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); padding: 16px; margin-bottom: 16px; }
+  .grafico-h-titulo { font-size: 14px; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .barra-h-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .barra-h-nome { font-size: 13px; font-weight: 600; color: var(--verde-escuro); width: 130px; min-width: 130px; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .barra-h-nome.laranja-txt { color: #a05a00; }
+  .barra-h-track { flex: 1; background: var(--cinza); border-radius: 6px; height: 28px; overflow: hidden; }
+  .barra-h-fill { height: 100%; border-radius: 6px; display: flex; align-items: center; padding-left: 10px; transition: width 0.4s ease; min-width: 30px; }
+  .barra-h-fill.verde { background: linear-gradient(90deg, var(--verde-escuro), var(--verde)); }
+  .barra-h-fill.laranja { background: linear-gradient(90deg, #c97000, var(--laranja)); }
+  .barra-h-valor { font-size: 13px; font-weight: 800; color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.3); white-space: nowrap; }
+  .barra-h-total { font-size: 13px; font-weight: 700; color: var(--cinza-escuro); min-width: 40px; }
+
   /* CADASTROS */
   .cadastro-grupo { background: white; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 16px; overflow: hidden; }
   .cadastro-titulo { background: var(--verde); color: white; padding: 10px 16px; font-size: 14px; font-weight: 700; }
@@ -153,7 +167,12 @@
 <main>
   <div id="secao-entradas" class="secao ativa">
     <div class="cards-resumo" id="cards-entradas"></div>
-    <div class="tabela-container">
+    <!-- GRÁFICO FORNECEDORES -->
+    <div class="grafico-h-container">
+      <div class="grafico-h-titulo" style="color:var(--verde-escuro)">📊 Volume por Fornecedor — Maior para Menor</div>
+      <div id="grafico-fornecedores"></div>
+    </div>
+        <div class="tabela-container">
       <div class="tabela-titulo">📥 Entradas do Dia</div>
       <div id="tabela-entradas-wrap"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
     </div>
@@ -162,7 +181,12 @@
 
   <div id="secao-saidas" class="secao">
     <div class="cards-resumo" id="cards-saidas"></div>
-    <div class="tabela-container">
+    <!-- GRÁFICO CLIENTES -->
+    <div class="grafico-h-container">
+      <div class="grafico-h-titulo" style="color:#a05a00">📊 Volume por Cliente — Maior para Menor</div>
+      <div id="grafico-clientes"></div>
+    </div>
+        <div class="tabela-container">
       <div class="tabela-titulo laranja">📤 Saídas do Dia</div>
       <div id="tabela-saidas-wrap"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
     </div>
@@ -271,6 +295,7 @@ function renderizarEntradas() {
   });
   html += `<tr class="total-row"><td>TOTAL</td>${produtos.map(p => `<td id="total-prod-ent-${p.id}">${totaisProd[p.id]}</td>`).join('')}<td id="total-geral-ent">${totalGeral}</td></tr></tbody></table>`;
   wrap.innerHTML = html;
+  renderizarGraficoFornecedores();
 }
 
 function atualizarEntrada(input) {
@@ -295,6 +320,7 @@ function atualizarEntrada(input) {
     const tgg = Object.values(tp).reduce((a,b) => a+b, 0);
     cards.innerHTML = `<div class="card-resumo"><div class="valor">${tgg}</div><div class="label">Total Entradas</div></div>${produtos.map(p => `<div class="card-resumo"><div class="valor">${tp[p.id]}</div><div class="label">${p.nome}</div></div>`).join('')}`;
   }
+  renderizarGraficoFornecedores();
   // Atualizar balanço em tempo real se estiver visível
   if (document.getElementById('secao-balanco').classList.contains('ativa')) atualizarBalancoTempoReal();
 }
@@ -352,6 +378,7 @@ function renderizarSaidas() {
   });
   html += `<tr class="total-row" style="background:var(--laranja-claro)"><td>TOTAL</td>${produtos.map(p => { if (bdjao && p.id === bdjao.id) return `<td id="total-prod-sai-${p.id}-l1">${clientes.reduce((s,c)=>s+(saidasDia[c.id]?.[p.id]?.l1||0),0)}</td><td id="total-prod-sai-${p.id}-l2">${clientes.reduce((s,c)=>s+(saidasDia[c.id]?.[p.id]?.l2||0),0)}</td><td id="total-prod-sai-${p.id}">${totaisProd[p.id]}</td>`; return `<td id="total-prod-sai-${p.id}">${totaisProd[p.id]}</td>`; }).join('')}<td id="total-geral-sai">${totalGeral}</td></tr></tbody></table>`;
   wrap.innerHTML = html;
+  renderizarGraficoClientes();
 }
 
 function atualizarSaida(input) {
@@ -369,6 +396,7 @@ function atualizarSaida(input) {
   const elTP = document.getElementById(`total-prod-sai-${pid}`); if (elTP) elTP.textContent = totP;
   const tg = clientes.reduce((s, c) => s + produtos.reduce((ss, p) => { const v = saidasDia[c.id]?.[p.id] || {l1:0,l2:0}; return ss+(v.l1||0)+(v.l2||0); }, 0), 0);
   const elTG = document.getElementById('total-geral-sai'); if (elTG) elTG.textContent = tg;
+  renderizarGraficoClientes();
   // Atualizar balanço em tempo real se estiver visível
   if (document.getElementById('secao-balanco').classList.contains('ativa')) atualizarBalancoTempoReal();
 }
@@ -472,6 +500,58 @@ async function salvarEstoqueReal() {
     document.querySelectorAll('input.qty.editado').forEach(i => i.classList.remove('editado'));
   } catch(e) { mostrarToast('❌ Erro ao salvar: ' + e.message, true); }
   if (btn) { btn.disabled = false; btn.textContent = '💾 Salvar Estoque'; }
+}
+
+
+// ===================== GRÁFICO FORNECEDORES =====================
+function renderizarGraficoFornecedores() {
+  const el = document.getElementById('grafico-fornecedores');
+  if (!el) return;
+  // Calcular total por fornecedor
+  const dados = fornecedores.map(f => ({
+    nome: f.nome,
+    total: produtos.reduce((s, p) => s + (entradasDia[f.id]?.[p.id] || 0), 0)
+  })).filter(d => d.total > 0).sort((a, b) => b.total - a.total);
+  if (!dados.length) { el.innerHTML = '<div style="color:var(--cinza-escuro);font-size:13px;padding:8px">Nenhuma entrada lançada ainda.</div>'; return; }
+  const max = dados[0].total;
+  el.innerHTML = dados.map(d => {
+    const pct = Math.max(Math.round((d.total / max) * 100), 4);
+    return `<div class="barra-h-row">
+      <div class="barra-h-nome">${d.nome}</div>
+      <div class="barra-h-track">
+        <div class="barra-h-fill verde" style="width:${pct}%">
+          <span class="barra-h-valor">${d.total}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ===================== GRÁFICO CLIENTES =====================
+function renderizarGraficoClientes() {
+  const el = document.getElementById('grafico-clientes');
+  if (!el) return;
+  // Calcular total por cliente
+  const dados = clientes.map(c => ({
+    nome: c.nome,
+    total: produtos.reduce((s, p) => {
+      const v = saidasDia[c.id]?.[p.id] || {l1:0,l2:0};
+      return s + (v.l1||0) + (v.l2||0);
+    }, 0)
+  })).filter(d => d.total > 0).sort((a, b) => b.total - a.total);
+  if (!dados.length) { el.innerHTML = '<div style="color:var(--cinza-escuro);font-size:13px;padding:8px">Nenhuma saída lançada ainda.</div>'; return; }
+  const max = dados[0].total;
+  el.innerHTML = dados.map(d => {
+    const pct = Math.max(Math.round((d.total / max) * 100), 4);
+    return `<div class="barra-h-row">
+      <div class="barra-h-nome laranja-txt">${d.nome}</div>
+      <div class="barra-h-track">
+        <div class="barra-h-fill laranja" style="width:${pct}%">
+          <span class="barra-h-valor">${d.total}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ===================== BALANÇO EM TEMPO REAL =====================
