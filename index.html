@@ -2,287 +2,789 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Coleta Meeiros v8 - AP</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Planner Morango — AP Frutas</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-body { font-family: -apple-system, Arial, sans-serif; background: #f4f7f2; min-height: 100vh; }
-.header { background:#fff; border-bottom:3px solid #2e7d32; padding:12px 16px; display:flex; align-items:center; gap:12px; position:sticky; top:0; z-index:100; box-shadow:0 2px 6px rgba(0,0,0,.08); }
-.logo { width:44px;height:44px;min-width:44px;background:#2e7d32;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;font-weight:900; }
-.header-text { flex:1; }
-.header-text h1 { font-size:16px;font-weight:700;color:#1b5e20;line-height:1.2; }
-.header-text .sub { font-size:11px;color:#888;margin-top:2px; }
-.date-badge { background:#e8f5e9;border:1px solid #a5d6a7;border-radius:20px;padding:4px 10px;font-size:11px;color:#2e7d32;font-weight:700;white-space:nowrap; }
-.container { max-width:700px;margin:0 auto;padding:12px 10px 40px; }
-.card { background:#fff;border-radius:12px;border:1px solid #e0e0e0;padding:12px 14px;margin-bottom:10px; }
-.sec-label { font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#888;margin-bottom:8px; }
-.tags { display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;min-height:10px; }
-.tag { display:inline-flex;align-items:center;gap:4px;background:#e8f5e9;border:1px solid #a5d6a7;border-radius:20px;padding:4px 8px 4px 12px;font-size:13px;color:#1b5e20; }
-.tag-x { background:none;border:none;color:#4caf50;font-size:18px;font-weight:700;cursor:pointer;padding:0 2px;line-height:1; }
-.add-row { display:flex;gap:8px; }
-.add-row input { flex:1;border:1.5px solid #ccc;border-radius:10px;padding:10px 12px;font-size:15px;outline:none;min-width:0;-webkit-appearance:none; }
-.add-row input:focus { border-color:#4caf50; }
-.btn-g { background:#2e7d32;color:#fff;border:none;border-radius:10px;padding:10px 16px;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;-webkit-appearance:none; }
-.btn-o { background:#fff;color:#2e7d32;border:2px solid #4caf50;border-radius:10px;padding:10px 16px;font-size:14px;font-weight:700;cursor:pointer;-webkit-appearance:none; }
-.btn-r { background:#c62828;color:#fff;border:none;border-radius:10px;padding:10px 16px;font-size:14px;font-weight:700;cursor:pointer;-webkit-appearance:none; }
-.meeiro-card { background:#fff;border-radius:12px;border:1px solid #e0e0e0;margin-bottom:8px;overflow:hidden; }
-.m-header { display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid #f0f0f0; }
-.avatar { width:34px;height:34px;min-width:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700; }
-.m-name { font-size:15px;font-weight:600;color:#212121;flex:1; }
-.del-btn { background:none;border:none;color:#ccc;font-size:20px;padding:4px 8px;cursor:pointer;border-radius:8px; }
-.prods-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;padding:10px 12px; }
-.pf label { display:block;font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px; }
-.pf input { border:1.5px solid #ddd;border-radius:8px;padding:8px 6px;font-size:16px;text-align:center;width:100%;font-weight:700;color:#212121;background:#fafafa;-webkit-appearance:none;outline:none; }
-.pf input:focus { border-color:#4caf50;background:#fff; }
-.m-total-box { border:2px solid #2e7d32;border-radius:8px;padding:8px 6px;font-size:16px;text-align:center;font-weight:700;color:#2e7d32;background:#e8f5e9; }
-.totais-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;margin-top:8px; }
-.tc { background:#e8f5e9;border-radius:10px;padding:10px 8px;text-align:center; }
-.tc .tl { font-size:10px;color:#4caf50;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px; }
-.tc .tv { font-size:20px;font-weight:700;color:#1b5e20; }
-.tc.geral { background:#2e7d32; }
-.tc.geral .tl { color:#a5d6a7; }
-.tc.geral .tv { color:#fff; }
-.chart-wrap { text-align:center;margin-top:8px; }
-.chart-wrap canvas { display:block;margin:0 auto;max-width:260px; }
-.legend { margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;justify-content:center; }
-.legend-item { display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:#333; }
-.legend-dot { width:13px;height:13px;min-width:13px;border-radius:3px;display:inline-block; }
-.actions { display:flex;gap:8px;margin-top:10px;flex-wrap:wrap; }
-.empty { text-align:center;padding:20px;color:#bbb;font-size:14px;border:1.5px dashed #ddd;border-radius:12px;margin-bottom:8px; }
-.status-bar { text-align:center;padding:8px;font-size:12px;color:#888;background:#f9f9f9;border-radius:8px;margin-bottom:10px; }
-.status-bar.ok { color:#2e7d32;background:#e8f5e9; }
-.status-bar.err { color:#c62828;background:#ffebee; }
-.modal-overlay { display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:200;padding:20px; }
-.modal-overlay.open { display:flex;align-items:center;justify-content:center; }
-.modal-box { background:#fff;border-radius:16px;padding:16px;width:100%;max-width:500px;max-height:80vh;display:flex;flex-direction:column;gap:10px; }
-.modal-box h3 { font-size:15px;font-weight:700;color:#1b5e20; }
-.modal-box textarea { flex:1;border:1.5px solid #ddd;border-radius:8px;padding:10px;font-size:12px;font-family:monospace;min-height:200px;resize:none;outline:none; }
-.modal-close-row { display:flex;gap:8px; }
+  :root {
+    --verde: #1C9842;
+    --verde-escuro: #166e30;
+    --verde-claro: #e8f5ed;
+    --laranja: #F39200;
+    --laranja-claro: #fff3e0;
+    --cinza: #f5f5f5;
+    --cinza-medio: #e0e0e0;
+    --cinza-escuro: #666;
+    --texto: #1a1a1a;
+    --branco: #ffffff;
+    --vermelho: #d32f2f;
+    --azul: #1565c0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f0; color: var(--texto); min-height: 100vh; }
+
+  header { background: var(--verde); color: white; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+  header h1 { font-size: 18px; font-weight: 700; letter-spacing: 0.5px; }
+  header .data-selector { display: flex; align-items: center; gap: 8px; }
+  header input[type="date"] { padding: 6px 10px; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; color: var(--verde-escuro); cursor: pointer; }
+  .btn-hoje { background: var(--laranja); color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
+
+  .tabs { display: flex; background: var(--verde-escuro); overflow-x: auto; }
+  .tab { padding: 12px 20px; color: rgba(255,255,255,0.7); cursor: pointer; font-size: 14px; font-weight: 600; border-bottom: 3px solid transparent; white-space: nowrap; transition: all 0.2s; }
+  .tab:hover { color: white; }
+  .tab.active { color: white; border-bottom-color: var(--laranja); }
+
+  main { padding: 16px; max-width: 1200px; margin: 0 auto; }
+  .secao { display: none; }
+  .secao.ativa { display: block; }
+
+  .cards-resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 16px; }
+  .card-resumo { background: white; border-radius: 10px; padding: 14px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,0.08); border-top: 3px solid var(--verde); }
+  .card-resumo.laranja { border-top-color: var(--laranja); }
+  .card-resumo.azul { border-top-color: var(--azul); }
+  .card-resumo .valor { font-size: 26px; font-weight: 800; color: var(--verde); }
+  .card-resumo.laranja .valor { color: var(--laranja); }
+  .card-resumo.azul .valor { color: var(--azul); }
+  .card-resumo .label { font-size: 11px; color: var(--cinza-escuro); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .tabela-container { background: white; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); overflow: hidden; margin-bottom: 16px; }
+  .tabela-titulo { background: var(--verde); color: white; padding: 10px 16px; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .tabela-titulo.laranja { background: var(--laranja); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th { background: var(--cinza); padding: 8px 6px; text-align: center; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; color: var(--cinza-escuro); border-bottom: 2px solid var(--cinza-medio); white-space: nowrap; }
+  thead th:first-child { text-align: left; padding-left: 12px; }
+  tbody tr:hover { background: var(--verde-claro); }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody td { padding: 6px 4px; border-bottom: 1px solid var(--cinza-medio); text-align: center; vertical-align: middle; }
+  tbody td:first-child { text-align: left; padding-left: 12px; font-weight: 600; color: var(--verde-escuro); white-space: nowrap; }
+
+  input.qty { width: 60px; padding: 4px 6px; border: 1px solid var(--cinza-medio); border-radius: 5px; text-align: center; font-size: 13px; font-weight: 600; color: var(--texto); background: var(--cinza); transition: all 0.15s; }
+  input.qty:focus { outline: none; border-color: var(--verde); background: white; box-shadow: 0 0 0 2px rgba(28,152,66,0.15); }
+  input.qty.editado { background: #fffde7; border-color: var(--laranja); }
+
+  tr.total-row td { font-weight: 800; background: var(--verde-claro); color: var(--verde-escuro); border-top: 2px solid var(--verde); }
+  tr.total-row td:first-child { color: var(--verde-escuro); }
+  tr.estoque-row td { background: #e3f2fd; color: var(--azul); font-weight: 700; }
+
+  .btn-salvar { background: var(--verde); color: white; border: none; padding: 12px 28px; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; display: block; margin: 0 auto 20px; box-shadow: 0 2px 8px rgba(28,152,66,0.3); transition: all 0.2s; }
+  .btn-salvar:hover { background: var(--verde-escuro); transform: translateY(-1px); }
+  .btn-salvar:active { transform: translateY(0); }
+  .btn-salvar:disabled { background: var(--cinza-medio); cursor: not-allowed; transform: none; box-shadow: none; }
+
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--verde-escuro); color: white; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px; z-index: 1000; transition: transform 0.3s ease; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+  .toast.erro { background: var(--vermelho); }
+  .toast.visivel { transform: translateX(-50%) translateY(0); }
+
+  .estoque-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 16px; }
+  .estoque-card { background: white; border-radius: 10px; padding: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); border-left: 4px solid var(--verde); }
+  .estoque-card.negativo { border-left-color: var(--vermelho); }
+  .estoque-card.zero { border-left-color: var(--laranja); }
+  .estoque-card .produto-nome { font-size: 12px; color: var(--cinza-escuro); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .estoque-card .saldo { font-size: 28px; font-weight: 800; color: var(--verde); }
+  .estoque-card.negativo .saldo { color: var(--vermelho); }
+  .estoque-card.zero .saldo { color: var(--laranja); }
+  .estoque-card .detalhes { font-size: 11px; color: var(--cinza-escuro); margin-top: 6px; line-height: 1.6; }
+
+  /* GRÁFICO BALANÇO */
+  .grafico-container { background: white; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); padding: 16px; margin-bottom: 16px; }
+  .grafico-titulo { font-size: 14px; font-weight: 700; color: #37474f; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .grafico-legenda { display: flex; gap: 16px; margin-bottom: 12px; flex-wrap: wrap; }
+  .legenda-item { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--cinza-escuro); }
+  .legenda-cor { width: 14px; height: 14px; border-radius: 3px; }
+  .barras-wrap { overflow-x: auto; }
+  .barras-grupo { display: flex; gap: 4px; align-items: flex-end; min-width: 600px; padding-bottom: 24px; position: relative; }
+  .barra-produto { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 1; }
+  .barra-produto-nome { font-size: 10px; font-weight: 700; color: var(--cinza-escuro); text-transform: uppercase; text-align: center; margin-top: 6px; }
+  .barra-par { display: flex; gap: 3px; align-items: flex-end; width: 100%; justify-content: center; }
+  .barra { border-radius: 4px 4px 0 0; min-height: 4px; transition: height 0.3s ease; position: relative; display: flex; align-items: flex-start; justify-content: center; }
+  .barra-valor { font-size: 10px; font-weight: 700; color: white; padding-top: 3px; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
+  .barra-ent { background: var(--verde); width: 28px; }
+  .barra-sai { background: var(--laranja); width: 28px; }
+  .eixo-y { position: absolute; left: 0; top: 0; bottom: 24px; display: flex; flex-direction: column; justify-content: space-between; pointer-events: none; }
+  .eixo-label { font-size: 9px; color: var(--cinza-escuro); }
+
+
+  /* GRÁFICOS HORIZONTAIS (fornecedores / clientes) */
+  .grafico-h-container { background: white; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); padding: 16px; margin-bottom: 16px; }
+  .grafico-h-titulo { font-size: 14px; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .barra-h-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .barra-h-nome { font-size: 13px; font-weight: 600; color: var(--verde-escuro); width: 130px; min-width: 130px; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .barra-h-nome.laranja-txt { color: #a05a00; }
+  .barra-h-track { flex: 1; background: var(--cinza); border-radius: 6px; height: 28px; overflow: hidden; }
+  .barra-h-fill { height: 100%; border-radius: 6px; display: flex; align-items: center; padding-left: 10px; transition: width 0.4s ease; min-width: 30px; }
+  .barra-h-fill.verde { background: linear-gradient(90deg, var(--verde-escuro), var(--verde)); }
+  .barra-h-fill.laranja { background: linear-gradient(90deg, #c97000, var(--laranja)); }
+  .barra-h-valor { font-size: 13px; font-weight: 800; color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.3); white-space: nowrap; }
+  .barra-h-total { font-size: 13px; font-weight: 700; color: var(--cinza-escuro); min-width: 40px; }
+
+  /* CADASTROS */
+  .cadastro-grupo { background: white; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 16px; overflow: hidden; }
+  .cadastro-titulo { background: var(--verde); color: white; padding: 10px 16px; font-size: 14px; font-weight: 700; }
+  .cadastro-lista { padding: 12px; }
+  .cadastro-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-radius: 6px; margin-bottom: 4px; background: var(--cinza); }
+  .cadastro-item.inativo { opacity: 0.5; }
+  .cadastro-item-nome { font-weight: 600; font-size: 14px; }
+  .cadastro-item-acoes { display: flex; gap: 6px; }
+  .btn-acao { padding: 4px 10px; border: none; border-radius: 5px; font-size: 12px; font-weight: 600; cursor: pointer; }
+  .btn-toggle { background: var(--laranja-claro); color: var(--laranja); }
+  .btn-toggle.ativo { background: var(--verde-claro); color: var(--verde); }
+  .cadastro-novo { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--cinza-medio); }
+  .cadastro-novo input { flex: 1; padding: 8px 12px; border: 1px solid var(--cinza-medio); border-radius: 6px; font-size: 14px; }
+  .cadastro-novo input:focus { outline: none; border-color: var(--verde); box-shadow: 0 0 0 2px rgba(28,152,66,0.15); }
+  .btn-adicionar { background: var(--verde); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; }
+
+  .loading { text-align: center; padding: 40px; color: var(--cinza-escuro); font-size: 15px; }
+  .spinner { width: 32px; height: 32px; border: 3px solid var(--cinza-medio); border-top-color: var(--verde); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 600px) {
+    header { flex-direction: column; gap: 10px; }
+    input.qty { width: 50px; font-size: 12px; }
+    thead th { font-size: 10px; padding: 6px 3px; }
+    tbody td { padding: 5px 3px; }
+  }
 </style>
 </head>
 <body>
-<div class="header">
-  <div class="logo">AP</div>
-  <div class="header-text">
-    <h1>Coleta de Dados — Meeiros v8</h1>
-    <div class="sub" id="date-sub"></div>
+
+<header>
+  <h1>🍓 Planner Morango — AP Frutas</h1>
+  <div class="data-selector">
+    <input type="date" id="dataSelecionada">
+    <button class="btn-hoje" onclick="irParaHoje()">Hoje</button>
   </div>
-  <div style="position:relative;display:inline-block;">
-    <div class="date-badge" id="date-badge"></div>
-    <input type="date" id="input-data" style="position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:16px;" />
-  </div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" onclick="mudarAba('entradas', this)">📥 Entradas</div>
+  <div class="tab" onclick="mudarAba('saidas', this)">📤 Saídas</div>
+  <div class="tab" onclick="mudarAba('estoque', this)">📦 Estoque</div>
+  <div class="tab" onclick="mudarAba('balanco', this)">⚖️ Balanço</div>
+  <div class="tab" onclick="mudarAba('cadastros', this)">⚙️ Cadastros</div>
 </div>
-<div class="container">
-  <div class="status-bar" id="status-bar">Conectando ao banco de dados...</div>
-  <div class="card">
-    <div class="sec-label">Produtos</div>
-    <div class="tags" id="prod-tags"></div>
-    <div class="add-row">
-      <input type="text" id="new-prod" placeholder="Novo produto..." maxlength="30" autocomplete="off">
-      <button class="btn-g" id="btn-add-prod">+ Produto</button>
+
+<main>
+  <div id="secao-entradas" class="secao ativa">
+    <div class="cards-resumo" id="cards-entradas"></div>
+    <!-- GRÁFICO FORNECEDORES -->
+    <div class="grafico-h-container">
+      <div class="grafico-h-titulo" style="color:var(--verde-escuro)">📊 Volume por Fornecedor — Maior para Menor</div>
+      <div id="grafico-fornecedores"></div>
     </div>
-  </div>
-  <div class="card">
-    <div class="sec-label">Adicionar Meeiro</div>
-    <div class="add-row">
-      <input type="text" id="new-meeiro" placeholder="Nome do meeiro..." maxlength="30" autocomplete="off">
-      <button class="btn-g" id="btn-add-meeiro">+ Meeiro</button>
+        <div class="tabela-container">
+      <div class="tabela-titulo">📥 Entradas do Dia</div>
+      <div id="tabela-entradas-wrap"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
     </div>
+    <button class="btn-salvar" onclick="salvarEntradas()">💾 Salvar Entradas</button>
   </div>
-  <div id="meeiros-list"></div>
-  <div class="card">
-    <div class="sec-label">Totais por produto</div>
-    <div class="totais-grid" id="totais-grid"></div>
-  </div>
-  <div class="card">
-    <div class="sec-label">Distribuicao por produto</div>
-    <div class="chart-wrap"><canvas id="pizza-chart" width="300" height="300"></canvas></div>
-    <div class="legend" id="pizza-legend"></div>
-  </div>
-  <div class="card">
-    <div class="sec-label">Divisao de Lucro</div>
-    <div class="chart-wrap"><canvas id="lucro-chart" width="300" height="300"></canvas></div>
-    <div class="legend" id="lucro-legend"></div>
-  </div>
-  <div class="actions">
-    <button class="btn-g" id="btn-salvar">Salvar dados</button>
-    <button class="btn-g" id="btn-csv">Ver CSV</button>
-    <button class="btn-r" id="btn-limpar">Limpar valores</button>
-  </div>
-</div>
-<div class="modal-overlay" id="csv-modal">
-  <div class="modal-box">
-    <h3>Dados do dia - selecione tudo e copie</h3>
-    <textarea id="csv-text" readonly></textarea>
-    <div class="modal-close-row">
-      <button class="btn-g" id="btn-copy-csv">Copiar tudo</button>
-      <button class="btn-o" id="btn-fechar-modal">Fechar</button>
+
+  <div id="secao-saidas" class="secao">
+    <div class="cards-resumo" id="cards-saidas"></div>
+    <!-- GRÁFICO CLIENTES -->
+    <div class="grafico-h-container">
+      <div class="grafico-h-titulo" style="color:#a05a00">📊 Volume por Cliente — Maior para Menor</div>
+      <div id="grafico-clientes"></div>
     </div>
+        <div class="tabela-container">
+      <div class="tabela-titulo laranja">📤 Saídas do Dia</div>
+      <div id="tabela-saidas-wrap"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
+    </div>
+    <button class="btn-salvar" onclick="salvarSaidas()" style="background:var(--laranja);">💾 Salvar Saídas</button>
   </div>
-</div>
+
+  <div id="secao-estoque" class="secao">
+    <div class="cards-resumo" id="cards-estoque-resumo"></div>
+    <div id="estoque-conteudo"><div class="loading"><div class="spinner"></div>Calculando estoque...</div></div>
+  </div>
+
+  <div id="secao-balanco" class="secao">
+    <div class="cards-resumo" id="cards-balanco"></div>
+    <!-- GRÁFICO -->
+    <div class="grafico-container" id="grafico-balanco">
+      <div class="grafico-titulo">📊 Comparativo Entrada x Saída por Produto</div>
+      <div class="grafico-legenda">
+        <div class="legenda-item"><div class="legenda-cor" style="background:var(--verde)"></div>Entradas</div>
+        <div class="legenda-item"><div class="legenda-cor" style="background:var(--laranja)"></div>Saídas</div>
+      </div>
+      <div class="barras-wrap"><div id="barras-conteudo" class="barras-grupo"></div></div>
+    </div>
+    <!-- TABELA -->
+    <div id="balanco-conteudo"><div class="loading"><div class="spinner"></div>Calculando balanço...</div></div>
+  </div>
+
+  <div id="secao-cadastros" class="secao">
+    <div id="cadastros-conteudo"><div class="loading"><div class="spinner"></div>Carregando cadastros...</div></div>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
 <script>
-var SUPABASE_URL = 'https://cagorqpetzsgmttkvlcm.supabase.co';
-var SUPABASE_KEY = 'sb_publishable_N3Y-dergVFNGpb-qZWjDHQ_46YHsdb4';
+const SUPABASE_URL = 'https://cagorqpetzsgmttkvlcm.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_N3Y-dergVFNGpb-qZWjDHQ_46YHsdb4';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Mapeamento produto coleta -> produto morango
-var MAPA_PRODUTOS = {
-  '200G':     '200g',
-  'Premium':  'Premiun',
-  'Bandejao': 'Bdjão',
-  'AP':       'Mini AP'
-};
+let produtos = [], fornecedores = [], clientes = [];
+let dataSel = '';
+let entradasDia = {}, saidasDia = {};
 
-var BGCOLORS=['#c8e6c9','#b3e5fc','#ffe0b2','#f8bbd0','#d1c4e9','#b2dfdb','#fff9c4','#ffccbc'];
-var TXCOLORS=['#1b5e20','#01579b','#e65100','#880e4f','#311b92','#004d40','#f57f17','#bf360c'];
-var CHART_COLORS=['#2e7d32','#f39200','#1565c0','#c62828','#6a1b9a','#00838f','#f9a825','#558b2f'];
-
-var produtos=['200G','Premium','Bandejao','AP'];
-var meeiros=['Camila','Sitio','Juliano','Gervasio','Lucia','Demercino','Nei','Gildemar','Olismar','Eric','Jean','Alberto','Tiago','Karen','Francielton','Inacio','Fernanda','Marcia','Rodrigo','Mateus Chaves'];
-var valores={};
-var dataAtual=new Date();
-var hoje=dataAtual.toISOString().slice(0,10);
-var hojeFormatado=dataAtual.toLocaleDateString('pt-BR');
-
-function setStatus(msg,tipo){var el=document.getElementById('status-bar');el.textContent=msg;el.className='status-bar'+(tipo?' '+tipo:'');}
-
-async function supabaseGet(tabela,filtros){
-  var url=SUPABASE_URL+'/rest/v1/'+tabela+'?';
-  if(filtros)url+=filtros;
-  var res=await fetch(url,{headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}});
-  return res.json();
-}
-
-async function supabasePost(tabela,dados,prefer){
-  var res=await fetch(SUPABASE_URL+'/rest/v1/'+tabela,{
-    method:'POST',
-    headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json','Prefer':prefer||'resolution=merge-duplicates'},
-    body:JSON.stringify(dados)
+// ===================== INIT =====================
+window.addEventListener('DOMContentLoaded', async () => {
+  const hoje = new Date().toISOString().split('T')[0];
+  document.getElementById('dataSelecionada').value = hoje;
+  dataSel = hoje;
+  document.getElementById('dataSelecionada').addEventListener('change', async (e) => {
+    dataSel = e.target.value;
+    await carregarTudo();
   });
-  return res;
+  await carregarCadastros();
+  await carregarTudo();
+});
+
+function irParaHoje() {
+  const hoje = new Date().toISOString().split('T')[0];
+  document.getElementById('dataSelecionada').value = hoje;
+  dataSel = hoje;
+  carregarTudo();
 }
 
-async function supabaseDelete(tabela,filtro){
-  var res=await fetch(SUPABASE_URL+'/rest/v1/'+tabela+'?'+filtro,{
-    method:'DELETE',
-    headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
+async function carregarCadastros() {
+  const [rp, rf, rc] = await Promise.all([
+    db.from('produtos').select('*').order('ordem'),
+    db.from('fornecedores').select('*').order('nome'),
+    db.from('clientes').select('*').order('nome')
+  ]);
+  produtos = (rp.data || []).filter(p => p.ativo);
+  fornecedores = (rf.data || []).filter(f => f.ativo);
+  clientes = (rc.data || []).filter(c => c.ativo);
+}
+
+async function carregarTudo() {
+  await Promise.all([carregarEntradas(), carregarSaidas(), carregarEstoque()]);
+  // Se balanço estiver visível, atualiza também
+  if (document.getElementById('secao-balanco').classList.contains('ativa')) {
+    atualizarBalancoTempoReal();
+  }
+}
+
+// ===================== ENTRADAS =====================
+async function carregarEntradas() {
+  const { data } = await db.from('entradas').select('*').eq('data', dataSel);
+  entradasDia = {};
+  fornecedores.forEach(f => { entradasDia[f.id] = {}; produtos.forEach(p => entradasDia[f.id][p.id] = 0); });
+  (data || []).forEach(r => { if (entradasDia[r.fornecedor_id]) entradasDia[r.fornecedor_id][r.produto_id] = r.quantidade || 0; });
+  renderizarEntradas();
+}
+
+function renderizarEntradas() {
+  const wrap = document.getElementById('tabela-entradas-wrap');
+  if (!fornecedores.length || !produtos.length) { wrap.innerHTML = '<div class="loading">Nenhum fornecedor ou produto cadastrado.</div>'; return; }
+  const totaisProd = {};
+  produtos.forEach(p => totaisProd[p.id] = 0);
+  fornecedores.forEach(f => produtos.forEach(p => totaisProd[p.id] += (entradasDia[f.id]?.[p.id] || 0)));
+  const totalGeral = Object.values(totaisProd).reduce((a,b) => a+b, 0);
+  document.getElementById('cards-entradas').innerHTML = `
+    <div class="card-resumo"><div class="valor">${totalGeral}</div><div class="label">Total Entradas</div></div>
+    ${produtos.map(p => `<div class="card-resumo"><div class="valor">${totaisProd[p.id]}</div><div class="label">${p.nome}</div></div>`).join('')}`;
+  let html = `<table><thead><tr><th>Fornecedor</th>${produtos.map(p => `<th>${p.nome}</th>`).join('')}<th>Total</th></tr></thead><tbody>`;
+  fornecedores.forEach(f => {
+    const totalForn = produtos.reduce((s, p) => s + (entradasDia[f.id]?.[p.id] || 0), 0);
+    html += `<tr><td>${f.nome}</td>${produtos.map(p => `<td><input type="number" class="qty" min="0" value="${entradasDia[f.id]?.[p.id] || 0}" data-forn="${f.id}" data-prod="${p.id}" oninput="atualizarEntrada(this)" onfocus="this.select()"></td>`).join('')}<td id="total-forn-${f.id}" style="font-weight:700;color:var(--verde-escuro)">${totalForn}</td></tr>`;
   });
-  return res;
+  html += `<tr class="total-row"><td>TOTAL</td>${produtos.map(p => `<td id="total-prod-ent-${p.id}">${totaisProd[p.id]}</td>`).join('')}<td id="total-geral-ent">${totalGeral}</td></tr></tbody></table>`;
+  wrap.innerHTML = html;
+  renderizarGraficoFornecedores();
 }
 
-async function carregarDados(){
-  try{
-    setStatus('Carregando dados de '+hojeFormatado+'...');
-    var dados=await supabaseGet('coleta','data=eq.'+hoje+'&select=*');
-    if(dados&&dados.length>0){
-      valores={};
-      for(var i=0;i<dados.length;i++){var row=dados[i];if(!valores[row.meeiro])valores[row.meeiro]={};valores[row.meeiro][row.produto]=row.quantidade;}
-      setStatus('Dados de hoje carregados!','ok');
-    } else { setStatus('Nenhum dado salvo hoje ainda.','ok'); }
-    render();
-  } catch(e){ setStatus('Erro ao carregar dados.','err'); render(); }
+function atualizarEntrada(input) {
+  const fid = input.dataset.forn, pid = input.dataset.prod;
+  const val = parseInt(input.value) || 0;
+  if (!entradasDia[fid]) entradasDia[fid] = {};
+  entradasDia[fid][pid] = val;
+  input.classList.add('editado');
+  const totalForn = produtos.reduce((s, p) => s + (entradasDia[fid]?.[p.id] || 0), 0);
+  const elTF = document.getElementById(`total-forn-${fid}`);
+  if (elTF) elTF.textContent = totalForn;
+  const totalProd = fornecedores.reduce((s, f) => s + (entradasDia[f.id]?.[pid] || 0), 0);
+  const elTP = document.getElementById(`total-prod-ent-${pid}`);
+  if (elTP) elTP.textContent = totalProd;
+  const tg = fornecedores.reduce((s, f) => s + produtos.reduce((ss, p) => ss + (entradasDia[f.id]?.[p.id] || 0), 0), 0);
+  const elTG = document.getElementById('total-geral-ent');
+  if (elTG) elTG.textContent = tg;
+  const cards = document.getElementById('cards-entradas');
+  if (cards) {
+    const tp = {}; produtos.forEach(p => tp[p.id] = 0);
+    fornecedores.forEach(f => produtos.forEach(p => tp[p.id] += (entradasDia[f.id]?.[p.id] || 0)));
+    const tgg = Object.values(tp).reduce((a,b) => a+b, 0);
+    cards.innerHTML = `<div class="card-resumo"><div class="valor">${tgg}</div><div class="label">Total Entradas</div></div>${produtos.map(p => `<div class="card-resumo"><div class="valor">${tp[p.id]}</div><div class="label">${p.nome}</div></div>`).join('')}`;
+  }
+  renderizarGraficoFornecedores();
+  // Atualizar balanço em tempo real se estiver visível
+  if (document.getElementById('secao-balanco').classList.contains('ativa')) atualizarBalancoTempoReal();
 }
 
-// ===================== INTEGRAÇÃO COM PLANNER MORANGO =====================
-async function sincronizarComMorango(){
-  try{
-    // 1. Calcular totais por produto
-    var totais={};
-    for(var pi=0;pi<produtos.length;pi++){
-      var total=0;
-      for(var mi=0;mi<meeiros.length;mi++) total+=parseFloat((valores[meeiros[mi]]&&valores[meeiros[mi]][produtos[pi]])||0);
-      totais[produtos[pi]]=total;
-    }
-
-    // 2. Buscar ID do fornecedor Meeiros
-    var forn=await supabaseGet('fornecedores','nome=eq.Meeiros&select=id');
-    if(!forn||!forn.length){ console.warn('Fornecedor Meeiros nao encontrado'); return false; }
-    var fornId=forn[0].id;
-
-    // 3. Buscar produtos do morango
-    var prodsMorango=await supabaseGet('produtos','select=id,nome');
-    var mapaId={};
-    for(var i=0;i<prodsMorango.length;i++) mapaId[prodsMorango[i].nome]=prodsMorango[i].id;
-
-    // 4. Apagar entradas do dia para Meeiros
-    await supabaseDelete('entradas','data=eq.'+hoje+'&fornecedor_id=eq.'+fornId);
-
-    // 5. Inserir novos totais
-    var novas=[];
-    for(var nomeProd in totais){
-      var nomeMorango=MAPA_PRODUTOS[nomeProd];
-      if(!nomeMorango) continue;
-      var prodId=mapaId[nomeMorango];
-      if(!prodId) continue;
-      var qty=totais[nomeProd];
-      if(qty>0) novas.push({data:hoje,fornecedor_id:fornId,produto_id:prodId,quantidade:Math.round(qty)});
-    }
-    if(novas.length>0) await supabasePost('entradas',novas,'return=minimal');
-    return true;
-  } catch(e){ console.error('Erro sincronizacao morango:',e); return false; }
+async function salvarEntradas() {
+  const btn = document.querySelector('#secao-entradas .btn-salvar');
+  btn.disabled = true; btn.textContent = '⏳ Salvando...';
+  try {
+    await db.from('entradas').delete().eq('data', dataSel);
+    const rows = [];
+    fornecedores.forEach(f => produtos.forEach(p => { const qty = entradasDia[f.id]?.[p.id] || 0; if (qty > 0) rows.push({ data: dataSel, fornecedor_id: f.id, produto_id: p.id, quantidade: qty }); }));
+    if (rows.length > 0) { const { error } = await db.from('entradas').insert(rows); if (error) throw error; }
+    await atualizarEstoqueDia();
+    mostrarToast('✅ Entradas salvas com sucesso!');
+    document.querySelectorAll('input.qty.editado').forEach(i => i.classList.remove('editado'));
+  } catch(e) { mostrarToast('❌ Erro ao salvar: ' + e.message, true); }
+  btn.disabled = false; btn.textContent = '💾 Salvar Entradas';
 }
 
-async function salvarDados(){
-  try{
-    setStatus('Salvando dados de '+hojeFormatado+'...');
-    var registros=[];
-    for(var mi=0;mi<meeiros.length;mi++){
-      var m=meeiros[mi];
-      for(var pi=0;pi<produtos.length;pi++){
-        var p=produtos[pi];
-        var v=parseFloat((valores[m]&&valores[m][p])||0);
-        registros.push({data:hoje,meeiro:m,produto:p,quantidade:v});
+// ===================== SAÍDAS =====================
+async function carregarSaidas() {
+  const { data } = await db.from('saidas').select('*').eq('data', dataSel);
+  saidasDia = {};
+  clientes.forEach(c => { saidasDia[c.id] = {}; produtos.forEach(p => saidasDia[c.id][p.id] = { l1: 0, l2: 0 }); });
+  (data || []).forEach(r => { if (saidasDia[r.cliente_id]) { const linha = r.linha === 2 ? 'l2' : 'l1'; saidasDia[r.cliente_id][r.produto_id][linha] = r.quantidade || 0; } });
+  renderizarSaidas();
+}
+
+function renderizarSaidas() {
+  const wrap = document.getElementById('tabela-saidas-wrap');
+  if (!clientes.length || !produtos.length) { wrap.innerHTML = '<div class="loading">Nenhum cliente ou produto cadastrado.</div>'; return; }
+  const bdjao = produtos.find(p => p.nome.toLowerCase().includes('bdj'));
+  const totaisProd = {};
+  produtos.forEach(p => totaisProd[p.id] = 0);
+  clientes.forEach(c => produtos.forEach(p => { const v = saidasDia[c.id]?.[p.id] || { l1:0, l2:0 }; totaisProd[p.id] += (v.l1||0)+(v.l2||0); }));
+  const totalGeral = Object.values(totaisProd).reduce((a,b) => a+b, 0);
+  document.getElementById('cards-saidas').innerHTML = `
+    <div class="card-resumo laranja"><div class="valor">${totalGeral}</div><div class="label">Total Saídas</div></div>
+    ${produtos.map(p => `<div class="card-resumo laranja"><div class="valor">${totaisProd[p.id]}</div><div class="label">${p.nome}</div></div>`).join('')}`;
+  let html = `<table><thead><tr><th>Cliente</th>${produtos.map(p => { if (bdjao && p.id === bdjao.id) return `<th>${p.nome} L1</th><th>${p.nome} L2</th><th>${p.nome} Total</th>`; return `<th>${p.nome}</th>`; }).join('')}<th>Total</th></tr></thead><tbody>`;
+  clientes.forEach(c => {
+    let totalCli = 0;
+    html += `<tr><td>${c.nome}</td>`;
+    produtos.forEach(p => {
+      const v = saidasDia[c.id]?.[p.id] || { l1:0, l2:0 };
+      if (bdjao && p.id === bdjao.id) {
+        const soma = (v.l1||0)+(v.l2||0); totalCli += soma;
+        html += `<td><input type="number" class="qty" min="0" value="${v.l1||0}" data-cli="${c.id}" data-prod="${p.id}" data-linha="1" oninput="atualizarSaida(this)" onfocus="this.select()"></td><td><input type="number" class="qty" min="0" value="${v.l2||0}" data-cli="${c.id}" data-prod="${p.id}" data-linha="2" oninput="atualizarSaida(this)" onfocus="this.select()"></td><td id="soma-bdj-${c.id}" style="font-weight:700">${soma}</td>`;
+      } else {
+        totalCli += (v.l1||0);
+        html += `<td><input type="number" class="qty" min="0" value="${v.l1||0}" data-cli="${c.id}" data-prod="${p.id}" data-linha="1" oninput="atualizarSaida(this)" onfocus="this.select()"></td>`;
       }
-    }
-    var res=await supabasePost('coleta',registros);
-    if(res.ok||res.status===201){
-      // Sincronizar automaticamente com o Planner Morango
-      var sincOk=await sincronizarComMorango();
-      if(sincOk) setStatus('Dados salvos e enviados ao Planner Morango!','ok');
-      else setStatus('Dados salvos! (aviso: sincronizacao com morango falhou)','ok');
-    } else { setStatus('Erro ao salvar. Tente novamente.','err'); }
-  } catch(e){ setStatus('Erro ao salvar. Verifique a conexao.','err'); }
+    });
+    html += `<td id="total-cli-${c.id}" style="font-weight:700;color:var(--laranja)">${totalCli}</td></tr>`;
+  });
+  html += `<tr class="total-row" style="background:var(--laranja-claro)"><td>TOTAL</td>${produtos.map(p => { if (bdjao && p.id === bdjao.id) return `<td id="total-prod-sai-${p.id}-l1">${clientes.reduce((s,c)=>s+(saidasDia[c.id]?.[p.id]?.l1||0),0)}</td><td id="total-prod-sai-${p.id}-l2">${clientes.reduce((s,c)=>s+(saidasDia[c.id]?.[p.id]?.l2||0),0)}</td><td id="total-prod-sai-${p.id}">${totaisProd[p.id]}</td>`; return `<td id="total-prod-sai-${p.id}">${totaisProd[p.id]}</td>`; }).join('')}<td id="total-geral-sai">${totalGeral}</td></tr></tbody></table>`;
+  wrap.innerHTML = html;
+  renderizarGraficoClientes();
 }
 
-function ini(n){return n.split(' ').slice(0,2).map(function(w){return w[0].toUpperCase();}).join('');}
-function colorIdx(name){var h=0;for(var i=0;i<name.length;i++)h=(h*31+name.charCodeAt(i))&0xffff;return h%BGCOLORS.length;}
-function fmt(v){return v%1===0?v:v.toFixed(1);}
-function render(){renderProdTags();renderMeeiros();renderTotais();}
+function atualizarSaida(input) {
+  const cid = input.dataset.cli, pid = input.dataset.prod, linha = input.dataset.linha === '2' ? 'l2' : 'l1';
+  const val = parseInt(input.value) || 0;
+  if (!saidasDia[cid]) saidasDia[cid] = {};
+  if (!saidasDia[cid][pid]) saidasDia[cid][pid] = { l1:0, l2:0 };
+  saidasDia[cid][pid][linha] = val;
+  input.classList.add('editado');
+  const bdjao = produtos.find(p => p.nome.toLowerCase().includes('bdj'));
+  if (bdjao && pid === bdjao.id) { const soma = (saidasDia[cid][pid].l1||0)+(saidasDia[cid][pid].l2||0); const el = document.getElementById(`soma-bdj-${cid}`); if (el) el.textContent = soma; }
+  const totalCli = produtos.reduce((s, p) => { const v = saidasDia[cid]?.[p.id] || {l1:0,l2:0}; return s+(v.l1||0)+(v.l2||0); }, 0);
+  const elTC = document.getElementById(`total-cli-${cid}`); if (elTC) elTC.textContent = totalCli;
+  const totP = clientes.reduce((s, c) => { const v = saidasDia[c.id]?.[pid] || {l1:0,l2:0}; return s+(v.l1||0)+(v.l2||0); }, 0);
+  const elTP = document.getElementById(`total-prod-sai-${pid}`); if (elTP) elTP.textContent = totP;
+  const tg = clientes.reduce((s, c) => s + produtos.reduce((ss, p) => { const v = saidasDia[c.id]?.[p.id] || {l1:0,l2:0}; return ss+(v.l1||0)+(v.l2||0); }, 0), 0);
+  const elTG = document.getElementById('total-geral-sai'); if (elTG) elTG.textContent = tg;
+  renderizarGraficoClientes();
+  // Atualizar balanço em tempo real se estiver visível
+  if (document.getElementById('secao-balanco').classList.contains('ativa')) atualizarBalancoTempoReal();
+}
 
-function renderProdTags(){var el=document.getElementById('prod-tags');if(!produtos.length){el.innerHTML='<span style="font-size:13px;color:#aaa">Nenhum produto.</span>';return;}var html='';for(var i=0;i<produtos.length;i++)html+='<span class="tag">'+produtos[i]+'<button class="tag-x" data-i="'+i+'">x</button></span>';el.innerHTML=html;var btns=el.getElementsByClassName('tag-x');for(var j=0;j<btns.length;j++)btns[j].onclick=function(){var idx=parseInt(this.getAttribute('data-i'));var nome=produtos[idx];produtos.splice(idx,1);for(var m in valores){if(valores[m])delete valores[m][nome];}render();};}
+async function salvarSaidas() {
+  const btn = document.querySelector('#secao-saidas .btn-salvar');
+  btn.disabled = true; btn.textContent = '⏳ Salvando...';
+  try {
+    await db.from('saidas').delete().eq('data', dataSel);
+    const rows = [];
+    clientes.forEach(c => produtos.forEach(p => { const v = saidasDia[c.id]?.[p.id] || {l1:0,l2:0}; if (v.l1 > 0) rows.push({ data: dataSel, cliente_id: c.id, produto_id: p.id, quantidade: v.l1, linha: 1 }); if (v.l2 > 0) rows.push({ data: dataSel, cliente_id: c.id, produto_id: p.id, quantidade: v.l2, linha: 2 }); }));
+    if (rows.length > 0) { const { error } = await db.from('saidas').insert(rows); if (error) throw error; }
+    await atualizarEstoqueDia();
+    mostrarToast('✅ Saídas salvas com sucesso!');
+    document.querySelectorAll('input.qty.editado').forEach(i => i.classList.remove('editado'));
+  } catch(e) { mostrarToast('❌ Erro ao salvar: ' + e.message, true); }
+  btn.disabled = false; btn.textContent = '💾 Salvar Saídas';
+}
 
-function renderMeeiros(){var el=document.getElementById('meeiros-list');if(!meeiros.length){el.innerHTML='<div class="empty">Nenhum meeiro cadastrado.</div>';return;}var html='';for(var mi=0;mi<meeiros.length;mi++){var m=meeiros[mi];var c=colorIdx(m);var fields='';if(produtos.length){for(var pi=0;pi<produtos.length;pi++){var p=produtos[pi];var val=(valores[m]&&valores[m][p]!==undefined&&valores[m][p]!=='')?valores[m][p]:'';fields+='<div class="pf"><label>'+p+'</label><input type="number" inputmode="decimal" min="0" step="0.5" placeholder="0" value="'+val+'" data-mi="'+mi+'" data-pi="'+pi+'"></div>';}fields+='<div class="pf"><label>Total</label><div class="m-total-box" id="total-'+mi+'">0</div></div>';}else{fields='<span style="font-size:13px;color:#aaa;padding:8px 0;display:block">Adicione produtos acima.</span>';}html+='<div class="meeiro-card"><div class="m-header"><div class="avatar" style="background:'+BGCOLORS[c]+';color:'+TXCOLORS[c]+'">'+ini(m)+'</div><span class="m-name">'+m+'</span><button class="del-btn" data-mi="'+mi+'">&#x1F5D1;</button></div><div class="prods-grid">'+fields+'</div></div>';}el.innerHTML=html;var delBtns=el.getElementsByClassName('del-btn');for(var d=0;d<delBtns.length;d++)delBtns[d].onclick=function(){var idx=parseInt(this.getAttribute('data-mi'));meeiros.splice(idx,1);render();};var inputs=el.querySelectorAll('input[type="number"]');for(var k=0;k<inputs.length;k++)inputs[k].oninput=function(){var mi2=parseInt(this.getAttribute('data-mi'));var pi2=parseInt(this.getAttribute('data-pi'));var m2=meeiros[mi2];var p2=produtos[pi2];if(!valores[m2])valores[m2]={};valores[m2][p2]=this.value===''?'':(parseFloat(this.value)||0);renderTotais();};}
+// ===================== ESTOQUE =====================
+async function atualizarEstoqueDia() {
+  const dataAnterior = new Date(dataSel);
+  dataAnterior.setDate(dataAnterior.getDate() - 1);
+  const dataAntStr = dataAnterior.toISOString().split('T')[0];
+  const { data: estoqueAnt } = await db.from('estoque').select('*').eq('data', dataAntStr);
+  const estAntMap = {};
+  (estoqueAnt || []).forEach(e => estAntMap[e.produto_id] = e.saldo || 0);
+  const { data: entDia } = await db.from('entradas').select('*').eq('data', dataSel);
+  const { data: saiDia } = await db.from('saidas').select('*').eq('data', dataSel);
+  const totEnt = {}, totSai = {};
+  produtos.forEach(p => { totEnt[p.id] = 0; totSai[p.id] = 0; });
+  (entDia || []).forEach(r => { if (totEnt[r.produto_id] !== undefined) totEnt[r.produto_id] += r.quantidade || 0; });
+  (saiDia || []).forEach(r => { if (totSai[r.produto_id] !== undefined) totSai[r.produto_id] += r.quantidade || 0; });
+  await db.from('estoque').delete().eq('data', dataSel);
+  const rows = produtos.map(p => ({ data: dataSel, produto_id: p.id, estoque_anterior: estAntMap[p.id] || 0, total_entradas: totEnt[p.id] || 0, total_saidas: totSai[p.id] || 0, saldo: (estAntMap[p.id] || 0) + (totEnt[p.id] || 0) - (totSai[p.id] || 0) }));
+  await db.from('estoque').insert(rows);
+}
 
-function getTotaisProd(){var totais=[];var geral=0;for(var pi=0;pi<produtos.length;pi++){var s=0;for(var mi=0;mi<meeiros.length;mi++)s+=parseFloat((valores[meeiros[mi]]&&valores[meeiros[mi]][produtos[pi]])||0);totais.push(s);geral+=s;}return{totais:totais,geral:geral};}
+async function carregarEstoque() {
+  const conteudo = document.getElementById('estoque-conteudo');
+  conteudo.innerHTML = '<div class="loading"><div class="spinner"></div>Calculando estoque...</div>';
+  const { data: est } = await db.from('estoque').select('*').eq('data', dataSel);
+  const { data: estReal } = await db.from('estoque_real').select('*').eq('data', dataSel);
+  const estMap = {}, estRealMap = {};
+  (est || []).forEach(e => estMap[e.produto_id] = e);
+  (estReal || []).forEach(e => estRealMap[e.produto_id] = e);
+  const totalEnt = produtos.reduce((s, p) => s + (estMap[p.id]?.total_entradas || 0), 0);
+  const totalSai = produtos.reduce((s, p) => s + (estMap[p.id]?.total_saidas || 0), 0);
+  const totalPrevisao = produtos.reduce((s, p) => { const ei = estRealMap[p.id]?.estoque_inicial ?? estMap[p.id]?.estoque_anterior ?? 0; const ent = estMap[p.id]?.total_entradas || 0; const sai = estMap[p.id]?.total_saidas || 0; return s + ei + ent - sai; }, 0);
+  const totalReal = produtos.reduce((s, p) => s + (estRealMap[p.id]?.estoque_real ?? 0), 0);
+  document.getElementById('cards-estoque-resumo').innerHTML = `
+    <div class="card-resumo"><div class="valor">${totalEnt}</div><div class="label">Total Entradas</div></div>
+    <div class="card-resumo laranja"><div class="valor">${totalSai}</div><div class="label">Total Saídas</div></div>
+    <div class="card-resumo azul"><div class="valor">${totalPrevisao}</div><div class="label">Previsão Final</div></div>
+    <div class="card-resumo" style="border-top-color:#9c27b0"><div class="valor" style="color:#9c27b0">${totalReal}</div><div class="label">Real Confirmado</div></div>`;
+  let html = `<div class="tabela-container"><div class="tabela-titulo azul" style="background:var(--azul)">📦 Estoque do Dia — ${formatarData(dataSel)}</div><table><thead><tr><th>Produto</th><th>Estoque Inicial</th><th>+ Entradas</th><th>− Saídas</th><th>= Previsão Final</th><th>✅ Real</th></tr></thead><tbody>`;
+  produtos.forEach(p => {
+    const e = estMap[p.id] || { total_entradas:0, total_saidas:0, estoque_anterior:0 };
+    const er = estRealMap[p.id] || {};
+    const estoqueInicial = er.estoque_inicial ?? e.estoque_anterior ?? 0;
+    const previsao = estoqueInicial + (e.total_entradas||0) - (e.total_saidas||0);
+    const real = er.estoque_real ?? '';
+    const corPrev = previsao < 0 ? 'var(--vermelho)' : (previsao === 0 ? 'var(--laranja)' : 'var(--verde)');
+    html += `<tr><td>${p.nome}</td><td><input type="number" class="qty" min="0" value="${estoqueInicial}" data-prod="${p.id}" data-campo="inicial" oninput="atualizarEstoqueReal(this)" onfocus="this.select()"></td><td style="color:var(--verde);font-weight:700">+${e.total_entradas||0}</td><td style="color:var(--laranja);font-weight:700">-${e.total_saidas||0}</td><td id="prev-${p.id}" style="color:${corPrev};font-weight:800;font-size:15px">${previsao}</td><td><input type="number" class="qty" min="0" value="${real}" placeholder="—" data-prod="${p.id}" data-campo="real" oninput="atualizarEstoqueReal(this)" onfocus="this.select()" style="border-color:#9c27b0;width:65px"></td></tr>`;
+  });
+  const totalIni = produtos.reduce((s, p) => { const e = estMap[p.id]||{}; const er = estRealMap[p.id]||{}; return s+(er.estoque_inicial??e.estoque_anterior??0); }, 0);
+  html += `<tr class="total-row"><td>TOTAL</td><td>${totalIni}</td><td style="color:var(--verde)">+${totalEnt}</td><td style="color:var(--laranja)">-${totalSai}</td><td style="color:var(--azul)">${totalPrevisao}</td><td style="color:#9c27b0">${totalReal||'—'}</td></tr></tbody></table></div>`;
+  html += `<button class="btn-salvar" onclick="salvarEstoqueReal()" style="background:#1565c0">💾 Salvar Estoque</button>`;
+  conteudo.innerHTML = html;
+}
 
-function renderTotais(){var data=getTotaisProd();var el=document.getElementById('totais-grid');if(!produtos.length){el.innerHTML='';}else{var html='';for(var pi=0;pi<produtos.length;pi++)html+='<div class="tc"><div class="tl">'+produtos[pi]+'</div><div class="tv">'+fmt(data.totais[pi])+'</div></div>';html+='<div class="tc geral"><div class="tl">Total Geral</div><div class="tv">'+fmt(data.geral)+'</div></div>';el.innerHTML=html;}for(var mi2=0;mi2<meeiros.length;mi2++){var m2=meeiros[mi2];var t=0;for(var pi2=0;pi2<produtos.length;pi2++)t+=parseFloat((valores[m2]&&valores[m2][produtos[pi2]])||0);var el2=document.getElementById('total-'+mi2);if(el2)el2.textContent=fmt(t);}drawPizzaChart(data);drawLucroChart(data.geral);}
+function atualizarEstoqueReal(input) {
+  const pid = input.dataset.prod, campo = input.dataset.campo;
+  input.classList.add('editado');
+  if (campo === 'inicial') {
+    const val = parseInt(input.value) || 0;
+    const row = input.closest('tr');
+    const cells = row.querySelectorAll('td');
+    const ent = parseInt(cells[2].textContent.replace('+','')) || 0;
+    const sai = parseInt(cells[3].textContent.replace('-','')) || 0;
+    const prev = val + ent - sai;
+    const elPrev = document.getElementById(`prev-${pid}`);
+    if (elPrev) { elPrev.textContent = prev; elPrev.style.color = prev < 0 ? 'var(--vermelho)' : prev === 0 ? 'var(--laranja)' : 'var(--verde)'; }
+  }
+}
 
-function drawPizzaChart(data){var canvas=document.getElementById('pizza-chart');if(!canvas)return;var ctx=canvas.getContext('2d');var W=canvas.width,H=canvas.height;ctx.clearRect(0,0,W,H);var cx=W/2,cy=H/2,r=W/2-10;var legendHtml='';if(data.geral===0){ctx.fillStyle='#eee';ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();ctx.fillStyle='#aaa';ctx.font='14px -apple-system,Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('Sem dados',cx,cy);document.getElementById('pizza-legend').innerHTML='';return;}var startAngle=-Math.PI/2;for(var i=0;i<produtos.length;i++){if(data.totais[i]===0)continue;var slice=(data.totais[i]/data.geral)*Math.PI*2;var color=CHART_COLORS[i%CHART_COLORS.length];ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,r,startAngle,startAngle+slice);ctx.closePath();ctx.fillStyle=color;ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();var mid=startAngle+slice/2;var lx=cx+r*0.62*Math.cos(mid);var ly=cy+r*0.62*Math.sin(mid);var pct=((data.totais[i]/data.geral)*100).toFixed(1);if(slice>0.18){ctx.fillStyle='#fff';ctx.font='bold 13px -apple-system,Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(pct+'%',lx,ly);}legendHtml+='<div class="legend-item"><span class="legend-dot" style="background:'+color+'"></span>'+produtos[i]+': '+fmt(data.totais[i])+' ('+pct+'%)</div>';startAngle+=slice;}document.getElementById('pizza-legend').innerHTML=legendHtml;}
+async function salvarEstoqueReal() {
+  const btn = document.querySelector('#secao-estoque .btn-salvar');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Salvando...'; }
+  try {
+    const iniciais = document.querySelectorAll('[data-campo="inicial"]');
+    await db.from('estoque_real').delete().eq('data', dataSel);
+    const rows = [];
+    iniciais.forEach(inp => {
+      const pid = inp.dataset.prod;
+      const realInp = document.querySelector(`[data-prod="${pid}"][data-campo="real"]`);
+      rows.push({ data: dataSel, produto_id: pid, estoque_inicial: parseInt(inp.value)||0, estoque_real: realInp && realInp.value !== '' ? parseInt(realInp.value) : null });
+    });
+    if (rows.length > 0) { const { error } = await db.from('estoque_real').insert(rows); if (error) throw error; }
+    mostrarToast('✅ Estoque salvo com sucesso!');
+    document.querySelectorAll('input.qty.editado').forEach(i => i.classList.remove('editado'));
+  } catch(e) { mostrarToast('❌ Erro ao salvar: ' + e.message, true); }
+  if (btn) { btn.disabled = false; btn.textContent = '💾 Salvar Estoque'; }
+}
 
-function drawLucroChart(geral){var canvas=document.getElementById('lucro-chart');if(!canvas)return;var ctx=canvas.getContext('2d');var W=canvas.width,H=canvas.height;ctx.clearRect(0,0,W,H);var cx=W/2,cy=H/2,r=W/2-10;var partes=[{label:'Meeiros',pct:0.40,color:'#f39200'},{label:'Sitio AP',pct:0.60,color:'#2e7d32'}];if(!geral){ctx.fillStyle='#eee';ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();ctx.fillStyle='#aaa';ctx.font='14px -apple-system,Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('Sem dados',cx,cy);document.getElementById('lucro-legend').innerHTML='';return;}var startAngle=-Math.PI/2;var legendHtml='';for(var i=0;i<partes.length;i++){var slice=partes[i].pct*Math.PI*2;var caixas=geral*partes[i].pct;ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,r,startAngle,startAngle+slice);ctx.closePath();ctx.fillStyle=partes[i].color;ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();var mid=startAngle+slice/2;var lx=cx+r*0.60*Math.cos(mid);var ly=cy+r*0.60*Math.sin(mid);ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='bold 15px -apple-system,Arial';ctx.fillText((partes[i].pct*100)+'%',lx,ly-9);ctx.font='12px -apple-system,Arial';ctx.fillText(fmt(caixas)+' cx',lx,ly+9);legendHtml+='<div class="legend-item"><span class="legend-dot" style="background:'+partes[i].color+'"></span>'+partes[i].label+': '+(partes[i].pct*100)+'% - '+fmt(caixas)+' caixas</div>';startAngle+=slice;}document.getElementById('lucro-legend').innerHTML=legendHtml;}
 
-function addProduto(){var inp=document.getElementById('new-prod');var n=inp.value.trim();if(!n)return;for(var i=0;i<produtos.length;i++){if(produtos[i]===n){inp.value='';return;}}produtos.push(n);inp.value='';render();}
-function addMeeiro(){var inp=document.getElementById('new-meeiro');var n=inp.value.trim();if(!n)return;for(var i=0;i<meeiros.length;i++){if(meeiros[i]===n){inp.value='';return;}}meeiros.push(n);inp.value='';render();}
-function limparValores(){valores={};render();}
-function gerarCSV(){var csv='Data,Meeiro,'+produtos.join(',')+',Total\n';for(var mi=0;mi<meeiros.length;mi++){var m=meeiros[mi];var t=0;var row=[];for(var pi=0;pi<produtos.length;pi++){var v=parseFloat((valores[m]&&valores[m][produtos[pi]])||0);t+=v;row.push(v);}csv+=hojeFormatado+','+m+','+row.join(',')+','+t+'\n';}var tots=[];var gt=0;for(var pi2=0;pi2<produtos.length;pi2++){var s=0;for(var mi2=0;mi2<meeiros.length;mi2++)s+=parseFloat((valores[meeiros[mi2]]&&valores[meeiros[mi2]][produtos[pi2]])||0);gt+=s;tots.push(s);}csv+=hojeFormatado+',TOTAL,'+tots.join(',')+','+gt+'\n';return csv;}
+// ===================== GRÁFICO FORNECEDORES =====================
+function renderizarGraficoFornecedores() {
+  const el = document.getElementById('grafico-fornecedores');
+  if (!el) return;
+  // Calcular total por fornecedor
+  const dados = fornecedores.map(f => ({
+    nome: f.nome,
+    total: produtos.reduce((s, p) => s + (entradasDia[f.id]?.[p.id] || 0), 0)
+  })).filter(d => d.total > 0).sort((a, b) => b.total - a.total);
+  if (!dados.length) { el.innerHTML = '<div style="color:var(--cinza-escuro);font-size:13px;padding:8px">Nenhuma entrada lançada ainda.</div>'; return; }
+  const max = dados[0].total;
+  el.innerHTML = dados.map(d => {
+    const pct = Math.max(Math.round((d.total / max) * 100), 4);
+    return `<div class="barra-h-row">
+      <div class="barra-h-nome">${d.nome}</div>
+      <div class="barra-h-track">
+        <div class="barra-h-fill verde" style="width:${pct}%">
+          <span class="barra-h-valor">${d.total}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
 
-document.getElementById('btn-add-prod').onclick=addProduto;
-document.getElementById('btn-add-meeiro').onclick=addMeeiro;
-document.getElementById('btn-limpar').onclick=limparValores;
-document.getElementById('btn-salvar').onclick=salvarDados;
-document.getElementById('btn-csv').onclick=function(){document.getElementById('csv-text').value=gerarCSV();document.getElementById('csv-modal').className='modal-overlay open';};
-document.getElementById('btn-fechar-modal').onclick=function(){document.getElementById('csv-modal').className='modal-overlay';};
-document.getElementById('btn-copy-csv').onclick=function(){var ta=document.getElementById('csv-text');ta.select();try{document.execCommand('copy');document.getElementById('btn-copy-csv').textContent='Copiado!';setTimeout(function(){document.getElementById('btn-copy-csv').textContent='Copiar tudo';},2000);}catch(e){}};
-document.getElementById('new-prod').onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();addProduto();}};
-document.getElementById('new-meeiro').onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();addMeeiro();}};
+// ===================== GRÁFICO CLIENTES =====================
+function renderizarGraficoClientes() {
+  const el = document.getElementById('grafico-clientes');
+  if (!el) return;
+  // Calcular total por cliente
+  const dados = clientes.map(c => ({
+    nome: c.nome,
+    total: produtos.reduce((s, p) => {
+      const v = saidasDia[c.id]?.[p.id] || {l1:0,l2:0};
+      return s + (v.l1||0) + (v.l2||0);
+    }, 0)
+  })).filter(d => d.total > 0).sort((a, b) => b.total - a.total);
+  if (!dados.length) { el.innerHTML = '<div style="color:var(--cinza-escuro);font-size:13px;padding:8px">Nenhuma saída lançada ainda.</div>'; return; }
+  const max = dados[0].total;
+  el.innerHTML = dados.map(d => {
+    const pct = Math.max(Math.round((d.total / max) * 100), 4);
+    return `<div class="barra-h-row">
+      <div class="barra-h-nome laranja-txt">${d.nome}</div>
+      <div class="barra-h-track">
+        <div class="barra-h-fill laranja" style="width:${pct}%">
+          <span class="barra-h-valor">${d.total}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
 
-var d=new Date();
-var opts={weekday:'long',day:'2-digit',month:'long',year:'numeric'};
-var lbl=d.toLocaleDateString('pt-BR',opts);
-document.getElementById('date-badge').textContent=hojeFormatado;
-document.getElementById('input-data').value=hoje;
-document.getElementById('date-sub').textContent=lbl.charAt(0).toUpperCase()+lbl.slice(1);
-document.getElementById('input-data').onchange=function(){if(!this.value)return;hoje=this.value;var partes=hoje.split('-');hojeFormatado=partes[2]+'/'+partes[1]+'/'+partes[0];document.getElementById('date-badge').textContent=hojeFormatado;valores={};render();carregarDados();};
-carregarDados();
+// ===================== BALANÇO EM TEMPO REAL =====================
+function calcularDadosBalanco() {
+  // Usa dados já carregados em memória (entradasDia e saidasDia)
+  const totEnt = {}, totSai = {};
+  produtos.forEach(p => { totEnt[p.id] = 0; totSai[p.id] = 0; });
+  fornecedores.forEach(f => produtos.forEach(p => totEnt[p.id] += (entradasDia[f.id]?.[p.id] || 0)));
+  clientes.forEach(c => produtos.forEach(p => { const v = saidasDia[c.id]?.[p.id] || {l1:0,l2:0}; totSai[p.id] += (v.l1||0)+(v.l2||0); }));
+  return { totEnt, totSai };
+}
+
+function atualizarBalancoTempoReal() {
+  const { totEnt, totSai } = calcularDadosBalanco();
+
+  // Buscar estoque inicial do DOM
+  const iniciaisMap = {};
+  produtos.forEach(p => {
+    const inp = document.querySelector(`[data-prod="${p.id}"][data-campo="inicial"]`);
+    iniciaisMap[p.id] = inp ? (parseInt(inp.value)||0) : 0;
+  });
+
+  // Calcular saldos individuais primeiro
+  const saldosIndividuais = produtos.map(p => ({
+    produto: p,
+    nome: p.nome,
+    inicial: iniciaisMap[p.id],
+    ent: totEnt[p.id] || 0,
+    sai: totSai[p.id] || 0,
+    saldo: iniciaisMap[p.id] + (totEnt[p.id]||0) - (totSai[p.id]||0),
+    isInsumo: p.nome.toLowerCase().includes('insumo')
+  }));
+
+  // Agrupar: produto Insumo soma junto com o produto base (mesmo nome sem " Insumo")
+  const grupos = [];
+  const processados = new Set();
+
+  saldosIndividuais.forEach(item => {
+    if (processados.has(item.produto.id)) return;
+
+    if (item.isInsumo) {
+      // Produto insumo — vai ser absorvido pelo pai, pula
+      processados.add(item.produto.id);
+      return;
+    }
+
+    // Procurar se existe versão Insumo deste produto
+    const nomeInsumo = item.nome + ' Insumo';
+    const insumo = saldosIndividuais.find(x => x.nome.toLowerCase() === nomeInsumo.toLowerCase());
+
+    if (insumo) {
+      // Agrupar os dois
+      processados.add(item.produto.id);
+      processados.add(insumo.produto.id);
+      grupos.push({
+        nome: item.nome,
+        inicial: item.inicial + insumo.inicial,
+        ent: item.ent + insumo.ent,
+        sai: item.sai + insumo.sai,
+        saldo: item.saldo + insumo.saldo,
+        agrupado: true,
+        detalhe: `Incl. ${insumo.nome}`
+      });
+    } else {
+      // Produto normal sem insumo
+      processados.add(item.produto.id);
+      grupos.push({
+        nome: item.nome,
+        inicial: item.inicial,
+        ent: item.ent,
+        sai: item.sai,
+        saldo: item.saldo,
+        agrupado: false,
+        detalhe: ''
+      });
+    }
+  });
+
+  let totalSobra = 0, totalFalta = 0;
+  grupos.forEach(g => { if (g.saldo > 0) totalSobra += g.saldo; else if (g.saldo < 0) totalFalta += g.saldo; });
+
+  // Cards resumo
+  document.getElementById('cards-balanco').innerHTML = `
+    <div class="card-resumo"><div class="valor" style="color:var(--verde)">${totalSobra}</div><div class="label">Total Sobra</div></div>
+    <div class="card-resumo laranja"><div class="valor" style="color:var(--vermelho)">${totalFalta}</div><div class="label">Total Falta</div></div>
+    <div class="card-resumo azul"><div class="valor">${grupos.filter(g=>g.saldo>0).length}</div><div class="label">Produtos com Sobra</div></div>
+    <div class="card-resumo" style="border-top-color:var(--vermelho)"><div class="valor" style="color:var(--vermelho)">${grupos.filter(g=>g.saldo<0).length}</div><div class="label">Produtos em Falta</div></div>`;
+
+  // Gráfico de barras (passa grupos como saldos)
+  renderizarGrafico(grupos.map(g => ({ produto: { nome: g.nome }, ent: g.ent, sai: g.sai, saldo: g.saldo })));
+
+  // Cards por produto
+  let htmlCards = '<div class="estoque-grid">';
+  grupos.forEach(({ nome, inicial, ent, sai, saldo, agrupado, detalhe }) => {
+    const classe = saldo < 0 ? 'negativo' : saldo === 0 ? 'zero' : '';
+    const emoji = saldo > 0 ? '✅' : saldo < 0 ? '❌' : '➡️';
+    const label = saldo > 0 ? 'SOBRA' : saldo < 0 ? 'FALTA' : 'ZERADO';
+    htmlCards += `<div class="estoque-card ${classe}">
+      <div class="produto-nome">${nome}${agrupado ? ' <span style="font-size:9px;opacity:0.7">(+Insumo)</span>' : ''}</div>
+      <div class="saldo">${saldo > 0 ? '+' : ''}${saldo}</div>
+      <div style="font-size:11px;font-weight:700;margin-top:2px;color:${saldo>0?'var(--verde)':saldo<0?'var(--vermelho)':'var(--laranja)'}">${emoji} ${label}</div>
+      <div class="detalhes">Inicial: ${inicial}<br>+ Entradas: ${ent}<br>− Saídas: ${sai}${detalhe ? '<br><em>'+detalhe+'</em>' : ''}</div>
+    </div>`;
+  });
+  htmlCards += '</div>';
+
+  // Tabela detalhada
+  let htmlTabela = `<div class="tabela-container"><div class="tabela-titulo" style="background:#37474f">⚖️ Balanço do Dia — ${formatarData(dataSel)}</div><table><thead><tr><th>Produto</th><th>Estoque Inicial</th><th>+ Entradas</th><th>− Saídas</th><th>= Saldo</th><th>Situação</th></tr></thead><tbody>`;
+  grupos.forEach(({ nome, inicial, ent, sai, saldo, agrupado, detalhe }) => {
+    const cor = saldo < 0 ? 'var(--vermelho)' : saldo === 0 ? 'var(--laranja)' : 'var(--verde)';
+    const situacao = saldo > 0 ? `<span style="color:var(--verde);font-weight:700">✅ Sobra ${saldo}</span>` : saldo < 0 ? `<span style="color:var(--vermelho);font-weight:700">❌ Falta ${Math.abs(saldo)}</span>` : `<span style="color:var(--laranja);font-weight:700">➡️ Zerado</span>`;
+    htmlTabela += `<tr>
+      <td>${nome}${agrupado ? ' <small style="color:var(--cinza-escuro);font-weight:400">(+Insumo)</small>' : ''}</td>
+      <td>${inicial}</td>
+      <td style="color:var(--verde);font-weight:700">+${ent}</td>
+      <td style="color:var(--laranja);font-weight:700">-${sai}</td>
+      <td style="color:${cor};font-weight:800;font-size:15px">${saldo > 0 ? '+' : ''}${saldo}</td>
+      <td>${situacao}</td>
+    </tr>`;
+  });
+  const tIni = grupos.reduce((s,r)=>s+r.inicial,0);
+  const tEnt = grupos.reduce((s,r)=>s+r.ent,0);
+  const tSai = grupos.reduce((s,r)=>s+r.sai,0);
+  const tSal = grupos.reduce((s,r)=>s+r.saldo,0);
+  const corT = tSal < 0 ? 'var(--vermelho)' : tSal === 0 ? 'var(--laranja)' : 'var(--verde)';
+  htmlTabela += `<tr class="total-row"><td>TOTAL</td><td>${tIni}</td><td style="color:var(--verde)">+${tEnt}</td><td style="color:var(--laranja)">-${tSai}</td><td style="color:${corT}">${tSal > 0 ? '+' : ''}${tSal}</td><td style="color:${corT};font-weight:800">${tSal > 0 ? '✅ Sobra' : tSal < 0 ? '❌ Falta' : '➡️ Zerado'}</td></tr></tbody></table></div>`;
+
+  document.getElementById('balanco-conteudo').innerHTML = htmlCards + htmlTabela;
+}
+
+function renderizarGrafico(saldos) {
+  const barrasEl = document.getElementById('barras-conteudo');
+  if (!barrasEl) return;
+
+  const maxVal = Math.max(...saldos.map(s => Math.max(s.ent, s.sai, 1)));
+  const alturaMax = 160; // px
+
+  let html = '';
+  saldos.forEach(({ produto, ent, sai }) => {
+    const hEnt = Math.max(Math.round((ent / maxVal) * alturaMax), ent > 0 ? 6 : 2);
+    const hSai = Math.max(Math.round((sai / maxVal) * alturaMax), sai > 0 ? 6 : 2);
+    html += `
+      <div class="barra-produto">
+        <div class="barra-par">
+          <div class="barra barra-ent" style="height:${hEnt}px">
+            ${ent > 0 ? `<span class="barra-valor" style="font-size:${ent > 999 ? '8px' : '10px'}">${ent}</span>` : ''}
+          </div>
+          <div class="barra barra-sai" style="height:${hSai}px">
+            ${sai > 0 ? `<span class="barra-valor" style="font-size:${sai > 999 ? '8px' : '10px'}">${sai}</span>` : ''}
+          </div>
+        </div>
+        <div class="barra-produto-nome">${produto.nome}</div>
+      </div>`;
+  });
+  barrasEl.innerHTML = html;
+}
+
+async function carregarBalanco() {
+  // Primeiro busca dados do banco para garantir consistência
+  const [entRes, saiRes] = await Promise.all([
+    db.from('entradas').select('*').eq('data', dataSel),
+    db.from('saidas').select('*').eq('data', dataSel)
+  ]);
+  // Atualiza entradasDia e saidasDia com dados do banco
+  entradasDia = {};
+  fornecedores.forEach(f => { entradasDia[f.id] = {}; produtos.forEach(p => entradasDia[f.id][p.id] = 0); });
+  (entRes.data || []).forEach(r => { if (entradasDia[r.fornecedor_id]) entradasDia[r.fornecedor_id][r.produto_id] = r.quantidade || 0; });
+  saidasDia = {};
+  clientes.forEach(c => { saidasDia[c.id] = {}; produtos.forEach(p => saidasDia[c.id][p.id] = {l1:0,l2:0}); });
+  (saiRes.data || []).forEach(r => { if (saidasDia[r.cliente_id]) { const linha = r.linha === 2 ? 'l2' : 'l1'; saidasDia[r.cliente_id][r.produto_id][linha] = r.quantidade || 0; } });
+  atualizarBalancoTempoReal();
+}
+
+// ===================== HELPER DATA =====================
+function formatarData(dataStr) {
+  if (!dataStr) return '';
+  const [ano, mes, dia] = dataStr.split('-');
+  return `${dia}/${mes}/${ano}`;
+}
+
+// ===================== CADASTROS =====================
+async function carregarCadastrosUI() {
+  const conteudo = document.getElementById('cadastros-conteudo');
+  conteudo.innerHTML = '<div class="loading"><div class="spinner"></div>Carregando...</div>';
+  const [rp, rf, rc] = await Promise.all([db.from('produtos').select('*').order('ordem'), db.from('fornecedores').select('*').order('nome'), db.from('clientes').select('*').order('nome')]);
+  function renderLista(items, tipo) {
+    return items.map(item => `<div class="cadastro-item ${item.ativo ? '' : 'inativo'}"><span class="cadastro-item-nome">${item.nome}</span><div class="cadastro-item-acoes"><button class="btn-acao btn-toggle ${item.ativo ? 'ativo' : ''}" onclick="toggleCadastro('${tipo}', '${item.id}', ${item.ativo})">${item.ativo ? '✅ Ativo' : '❌ Inativo'}</button></div></div>`).join('');
+  }
+  conteudo.innerHTML = `
+    <div class="cadastro-grupo"><div class="cadastro-titulo">🌱 Produtos</div><div class="cadastro-lista">${renderLista(rp.data||[], 'produtos')}</div><div class="cadastro-novo"><input type="text" id="novo-produto" placeholder="Nome do novo produto..."><button class="btn-adicionar" onclick="adicionarCadastro('produtos', 'novo-produto')">+ Adicionar</button></div></div>
+    <div class="cadastro-grupo"><div class="cadastro-titulo">🚚 Fornecedores</div><div class="cadastro-lista">${renderLista(rf.data||[], 'fornecedores')}</div><div class="cadastro-novo"><input type="text" id="novo-fornecedor" placeholder="Nome do novo fornecedor..."><button class="btn-adicionar" onclick="adicionarCadastro('fornecedores', 'novo-fornecedor')">+ Adicionar</button></div></div>
+    <div class="cadastro-grupo"><div class="cadastro-titulo">🏪 Clientes</div><div class="cadastro-lista">${renderLista(rc.data||[], 'clientes')}</div><div class="cadastro-novo"><input type="text" id="novo-cliente" placeholder="Nome do novo cliente..."><button class="btn-adicionar" onclick="adicionarCadastro('clientes', 'novo-cliente')">+ Adicionar</button></div></div>`;
+}
+
+async function toggleCadastro(tabela, id, ativo) {
+  await db.from(tabela).update({ ativo: !ativo }).eq('id', id);
+  await carregarCadastros();
+  await carregarCadastrosUI();
+  mostrarToast(`✅ ${ativo ? 'Desativado' : 'Ativado'} com sucesso!`);
+}
+
+async function adicionarCadastro(tabela, inputId) {
+  const input = document.getElementById(inputId);
+  const nome = input.value.trim();
+  if (!nome) return;
+  const row = { nome, ativo: true };
+  if (tabela === 'produtos') { const { data } = await db.from('produtos').select('ordem').order('ordem', { ascending: false }).limit(1); row.ordem = (data?.[0]?.ordem || 0) + 1; }
+  const { error } = await db.from(tabela).insert(row);
+  if (error) { mostrarToast('❌ Erro: ' + error.message, true); return; }
+  input.value = '';
+  await carregarCadastros();
+  await carregarCadastrosUI();
+  mostrarToast(`✅ ${nome} adicionado!`);
+}
+
+// ===================== NAVEGAÇÃO =====================
+function mudarAba(aba, el) {
+  document.querySelectorAll('.secao').forEach(s => s.classList.remove('ativa'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(`secao-${aba}`).classList.add('ativa');
+  el.classList.add('active');
+  if (aba === 'estoque') carregarEstoque();
+  if (aba === 'balanco') carregarBalanco();
+  if (aba === 'cadastros') carregarCadastrosUI();
+}
+
+// ===================== TOAST =====================
+function mostrarToast(msg, erro = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast ${erro ? 'erro' : ''} visivel`;
+  setTimeout(() => t.classList.remove('visivel'), 3000);
+}
 </script>
 </body>
 </html>
