@@ -47,19 +47,17 @@
   .card-resumo.azul .valor { color: var(--azul); }
   .card-resumo .label { font-size: 11px; color: var(--cinza-escuro); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
 
-  .tabela-container { background: white; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); overflow: hidden; margin-bottom: 16px; }
+  .tabela-container { background: white; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 16px; }
   .tabela-titulo { background: var(--verde); color: white; padding: 10px 16px; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; border-radius: 10px 10px 0 0; }
   .tabela-titulo.laranja { background: var(--laranja); }
 
-  /* Área de scroll horizontal - SEPARADA do título */
-  .tabela-scroll { display: block; width: 100%; overflow-x: scroll; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
-  .tabela-scroll::-webkit-scrollbar { height: 6px; }
-  .tabela-scroll::-webkit-scrollbar-track { background: #f0f0f0; }
-  .tabela-scroll::-webkit-scrollbar-thumb { background: #aaa; border-radius: 4px; }
+  /* Área de scroll horizontal - MESMA formula do grafico que funciona */
+  .tabela-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  #tabela-entradas-wrap, #tabela-saidas-wrap { min-width: 640px; }
 
 
 
-  table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 640px; }
+  table { border-collapse: collapse; font-size: 13px; min-width: 640px; }
   thead th { background: var(--cinza); padding: 8px 6px; text-align: center; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; color: var(--cinza-escuro); border-bottom: 2px solid var(--cinza-medio); white-space: nowrap; }
   thead th:first-child { text-align: left; padding-left: 12px; }
   tbody tr:hover { background: var(--verde-claro); }
