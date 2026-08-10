@@ -47,18 +47,13 @@
   .card-resumo.azul .valor { color: var(--azul); }
   .card-resumo .label { font-size: 11px; color: var(--cinza-escuro); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
 
-  .tabela-container { background: white; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); overflow: hidden; margin-bottom: 16px; }
-  .tabela-titulo { background: var(--verde); color: white; padding: 10px 16px; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .tabela-container { background: white; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); overflow-x: auto; overflow-y: visible; -webkit-overflow-scrolling: touch; margin-bottom: 16px; }
+  .tabela-titulo { background: var(--verde); color: white; padding: 10px 16px; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; border-radius: 10px 10px 0 0; }
   .tabela-titulo.laranja { background: var(--laranja); }
 
-  /* Scroll horizontal nas tabelas */
-  .tabela-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; display: block; width: 100%; }
-  .tabela-scroll::-webkit-scrollbar { height: 4px; }
-  .tabela-scroll::-webkit-scrollbar-thumb { background: var(--cinza-medio); border-radius: 4px; }
-  .tabela-scroll table { min-width: 600px; width: max-content; max-width: none; }
-  .tabela-container { overflow: visible !important; }
 
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 600px; }
   thead th { background: var(--cinza); padding: 8px 6px; text-align: center; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; color: var(--cinza-escuro); border-bottom: 2px solid var(--cinza-medio); white-space: nowrap; }
   thead th:first-child { text-align: left; padding-left: 12px; position: sticky; left: 0; z-index: 2; background: var(--cinza); }
   tbody tr:hover { background: var(--verde-claro); }
@@ -162,9 +157,8 @@
     .btn-salvar { width: 100%; padding: 14px; font-size: 16px; }
     .grafico-h-container { padding: 12px; }
     .barra-h-nome { width: 90px; min-width: 90px; font-size: 11px; }
-    .tabela-scroll { border-radius: 0 0 10px 10px; }
-    .tabela-scroll table { font-size: 12px; }
-    .tabela-scroll input.qty { width: 44px; font-size: 11px; }
+    .tabela-container table { font-size: 12px; }
+    .tabela-container input.qty { width: 44px; font-size: 11px; }
   }
 </style>
 </head>
@@ -196,7 +190,7 @@
     </div>
         <div class="tabela-container">
       <div class="tabela-titulo">📥 Entradas do Dia</div>
-      <div class="tabela-scroll"><div id="tabela-entradas-wrap"><div class="loading"><div class="spinner"></div>Carregando...</div></div></div>
+      <div id="tabela-entradas-wrap"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
     </div>
     <button class="btn-salvar" onclick="salvarEntradas()">💾 Salvar Entradas</button>
   </div>
@@ -210,7 +204,7 @@
     </div>
         <div class="tabela-container">
       <div class="tabela-titulo laranja">📤 Saídas do Dia</div>
-      <div class="tabela-scroll"><div id="tabela-saidas-wrap"><div class="loading"><div class="spinner"></div>Carregando...</div></div></div>
+      <div id="tabela-saidas-wrap"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
     </div>
     <button class="btn-salvar" onclick="salvarSaidas()" style="background:var(--laranja);">💾 Salvar Saídas</button>
   </div>
@@ -474,7 +468,7 @@ async function carregarEstoque() {
     <div class="card-resumo laranja"><div class="valor">${totalSai}</div><div class="label">Total Saídas</div></div>
     <div class="card-resumo azul"><div class="valor">${totalPrevisao}</div><div class="label">Previsão Final</div></div>
     <div class="card-resumo" style="border-top-color:#9c27b0"><div class="valor" style="color:#9c27b0">${totalReal}</div><div class="label">Real Confirmado</div></div>`;
-  let html = `<div class="tabela-container"><div class="tabela-titulo azul" style="background:var(--azul)">📦 Estoque do Dia — ${formatarData(dataSel)}</div><div class="tabela-scroll"><table><thead><tr><th>Produto</th><th>Estoque Inicial</th><th>+ Entradas</th><th>− Saídas</th><th>= Previsão Final</th><th>✅ Real</th></tr></thead><tbody>`;
+  let html = `<div class="tabela-container"><div class="tabela-titulo azul" style="background:var(--azul)">📦 Estoque do Dia — ${formatarData(dataSel)}</div><table><thead><tr><th>Produto</th><th>Estoque Inicial</th><th>+ Entradas</th><th>− Saídas</th><th>= Previsão Final</th><th>✅ Real</th></tr></thead><tbody>`;
   produtos.forEach(p => {
     const e = estMap[p.id] || { total_entradas:0, total_saidas:0, estoque_anterior:0 };
     const er = estRealMap[p.id] || {};
@@ -485,7 +479,7 @@ async function carregarEstoque() {
     html += `<tr><td>${p.nome}</td><td><input type="number" class="qty" min="0" value="${estoqueInicial}" data-prod="${p.id}" data-campo="inicial" oninput="atualizarEstoqueReal(this)" onfocus="this.select()"></td><td style="color:var(--verde);font-weight:700">+${e.total_entradas||0}</td><td style="color:var(--laranja);font-weight:700">-${e.total_saidas||0}</td><td id="prev-${p.id}" style="color:${corPrev};font-weight:800;font-size:15px">${previsao}</td><td><input type="number" class="qty" min="0" value="${real}" placeholder="—" data-prod="${p.id}" data-campo="real" oninput="atualizarEstoqueReal(this)" onfocus="this.select()" style="border-color:#9c27b0;width:65px"></td></tr>`;
   });
   const totalIni = produtos.reduce((s, p) => { const e = estMap[p.id]||{}; const er = estRealMap[p.id]||{}; return s+(er.estoque_inicial??e.estoque_anterior??0); }, 0);
-  html += `<tr class="total-row"><td>TOTAL</td><td>${totalIni}</td><td style="color:var(--verde)">+${totalEnt}</td><td style="color:var(--laranja)">-${totalSai}</td><td style="color:var(--azul)">${totalPrevisao}</td><td style="color:#9c27b0">${totalReal||'—'}</td></tr></tbody></table></div></div>`;
+  html += `<tr class="total-row"><td>TOTAL</td><td>${totalIni}</td><td style="color:var(--verde)">+${totalEnt}</td><td style="color:var(--laranja)">-${totalSai}</td><td style="color:var(--azul)">${totalPrevisao}</td><td style="color:#9c27b0">${totalReal||'—'}</td></tr></tbody></table></div>`;
   html += `<button class="btn-salvar" onclick="salvarEstoqueReal()" style="background:#1565c0">💾 Salvar Estoque</button>`;
   conteudo.innerHTML = html;
 }
@@ -681,7 +675,7 @@ function atualizarBalancoTempoReal() {
   htmlCards += '</div>';
 
   // Tabela detalhada
-  let htmlTabela = `<div class="tabela-container"><div class="tabela-titulo" style="background:#37474f">⚖️ Balanço do Dia — ${formatarData(dataSel)}</div><div class="tabela-scroll"><table><thead><tr><th>Produto</th><th>Estoque Inicial</th><th>+ Entradas</th><th>− Saídas</th><th>= Saldo</th><th>Situação</th></tr></thead><tbody>`;
+  let htmlTabela = `<div class="tabela-container"><div class="tabela-titulo" style="background:#37474f">⚖️ Balanço do Dia — ${formatarData(dataSel)}</div><table><thead><tr><th>Produto</th><th>Estoque Inicial</th><th>+ Entradas</th><th>− Saídas</th><th>= Saldo</th><th>Situação</th></tr></thead><tbody>`;
   grupos.forEach(({ nome, inicial, ent, sai, saldo, agrupado, detalhe }) => {
     const cor = saldo < 0 ? 'var(--vermelho)' : saldo === 0 ? 'var(--laranja)' : 'var(--verde)';
     const situacao = saldo > 0 ? `<span style="color:var(--verde);font-weight:700">✅ Sobra ${saldo}</span>` : saldo < 0 ? `<span style="color:var(--vermelho);font-weight:700">❌ Falta ${Math.abs(saldo)}</span>` : `<span style="color:var(--laranja);font-weight:700">➡️ Zerado</span>`;
@@ -699,7 +693,7 @@ function atualizarBalancoTempoReal() {
   const tSai = grupos.reduce((s,r)=>s+r.sai,0);
   const tSal = grupos.reduce((s,r)=>s+r.saldo,0);
   const corT = tSal < 0 ? 'var(--vermelho)' : tSal === 0 ? 'var(--laranja)' : 'var(--verde)';
-  htmlTabela += `<tr class="total-row"><td>TOTAL</td><td>${tIni}</td><td style="color:var(--verde)">+${tEnt}</td><td style="color:var(--laranja)">-${tSai}</td><td style="color:${corT}">${tSal > 0 ? '+' : ''}${tSal}</td><td style="color:${corT};font-weight:800">${tSal > 0 ? '✅ Sobra' : tSal < 0 ? '❌ Falta' : '➡️ Zerado'}</td></tr></tbody></table></div></div>`;
+  htmlTabela += `<tr class="total-row"><td>TOTAL</td><td>${tIni}</td><td style="color:var(--verde)">+${tEnt}</td><td style="color:var(--laranja)">-${tSai}</td><td style="color:${corT}">${tSal > 0 ? '+' : ''}${tSal}</td><td style="color:${corT};font-weight:800">${tSal > 0 ? '✅ Sobra' : tSal < 0 ? '❌ Falta' : '➡️ Zerado'}</td></tr></tbody></table></div>`;
 
   document.getElementById('balanco-conteudo').innerHTML = htmlCards + htmlTabela;
 }
