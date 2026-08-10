@@ -52,7 +52,7 @@
   .tabela-titulo.laranja { background: var(--laranja); }
 
   /* Área de scroll horizontal - SEPARADA do título */
-  .tabela-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .tabela-scroll { display: block; width: 100%; overflow-x: scroll; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
   .tabela-scroll::-webkit-scrollbar { height: 6px; }
   .tabela-scroll::-webkit-scrollbar-track { background: #f0f0f0; }
   .tabela-scroll::-webkit-scrollbar-thumb { background: #aaa; border-radius: 4px; }
@@ -61,13 +61,11 @@
 
   table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 640px; }
   thead th { background: var(--cinza); padding: 8px 6px; text-align: center; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; color: var(--cinza-escuro); border-bottom: 2px solid var(--cinza-medio); white-space: nowrap; }
-  thead th:first-child { text-align: left; padding-left: 12px; position: sticky; left: 0; z-index: 2; background: var(--cinza); }
+  thead th:first-child { text-align: left; padding-left: 12px; }
   tbody tr:hover { background: var(--verde-claro); }
   tbody tr:last-child td { border-bottom: none; }
   tbody td { padding: 6px 4px; border-bottom: 1px solid var(--cinza-medio); text-align: center; vertical-align: middle; white-space: nowrap; }
-  tbody td:first-child { text-align: left; padding-left: 12px; font-weight: 600; color: var(--verde-escuro); white-space: nowrap; position: sticky; left: 0; background: white; z-index: 1; box-shadow: 2px 0 4px rgba(0,0,0,0.06); }
-  tbody tr:hover td:first-child { background: var(--verde-claro); }
-  tr.total-row td:first-child { background: var(--verde-claro); }
+  tbody td:first-child { text-align: left; padding-left: 12px; font-weight: 600; color: var(--verde-escuro); white-space: nowrap; }
 
   input.qty { width: 55px; padding: 4px 4px; border: 1px solid var(--cinza-medio); border-radius: 5px; text-align: center; font-size: 13px; font-weight: 600; color: var(--texto); background: var(--cinza); transition: all 0.15s; -webkit-appearance: none; }
   input.qty:focus { outline: none; border-color: var(--verde); background: white; box-shadow: 0 0 0 2px rgba(28,152,66,0.15); }
