@@ -376,7 +376,7 @@ async function carregarSaidas() {
   const { data } = await db.from('saidas').select('*').eq('data', dataSel);
   saidasDia = {};
   clientes.forEach(c => { saidasDia[c.id] = {}; produtos.forEach(p => saidasDia[c.id][p.id] = { l1: 0, l2: 0 }); });
-  (data || []).forEach(r => { if (saidasDia[r.cliente_id]) { const linha = r.linha === 2 ? 'l2' : 'l1'; saidasDia[r.cliente_id][r.produto_id][linha] = r.quantidade || 0; } });
+  (data || []).forEach(r => { if (saidasDia[r.cliente_id] && saidasDia[r.cliente_id][r.produto_id]) { const linha = r.linha === 2 ? 'l2' : 'l1'; saidasDia[r.cliente_id][r.produto_id][linha] = r.quantidade || 0; } });
   renderizarSaidas();
 }
 
@@ -755,7 +755,7 @@ async function carregarBalanco() {
   (entRes.data || []).forEach(r => { if (entradasDia[r.fornecedor_id]) entradasDia[r.fornecedor_id][r.produto_id] = r.quantidade || 0; });
   saidasDia = {};
   clientes.forEach(c => { saidasDia[c.id] = {}; produtos.forEach(p => saidasDia[c.id][p.id] = {l1:0,l2:0}); });
-  (saiRes.data || []).forEach(r => { if (saidasDia[r.cliente_id]) { const linha = r.linha === 2 ? 'l2' : 'l1'; saidasDia[r.cliente_id][r.produto_id][linha] = r.quantidade || 0; } });
+  (saiRes.data || []).forEach(r => { if (saidasDia[r.cliente_id] && saidasDia[r.cliente_id][r.produto_id]) { const linha = r.linha === 2 ? 'l2' : 'l1'; saidasDia[r.cliente_id][r.produto_id][linha] = r.quantidade || 0; } });
   atualizarBalancoTempoReal();
 }
 
@@ -898,9 +898,24 @@ async function carregarRelatorio() {
     html += `<tr class="total-row"><td>TOTAL</td><td>${totalCaixas}</td><td>100%</td></tr></tbody></table></div></div>`;
 
     const max = grupos[0].total;
-    html += `<div class="grafico-h-container"><div class="grafico-h-titulo">📊 Proporção de Caixas por Item</div>`;
-    html += grupos.map(g => {
-      const pct = Math.max(Math.round((g.total / max) * 100), 4);
+    let tituloGrafico = '📊 Proporção de Caixas por Item';
+    let itensGrafico = grupos.map(g => ({ nome: g.nome, total: g.total }));
+
+    if (!clienteId) {
+      const totalPorCliente = {};
+      clientes.forEach(c => totalPorCliente[c.id] = 0);
+      rowsFiltrado.forEach(r => { if (totalPorCliente[r.cliente_id] !== undefined) totalPorCliente[r.cliente_id] += r.quantidade || 0; });
+      const clientesComSaida = clientes
+        .map(c => ({ nome: c.nome, total: totalPorCliente[c.id] || 0 }))
+        .filter(c => c.total > 0)
+        .sort((a, b) => b.total - a.total);
+      if (clientesComSaida.length) { tituloGrafico = '📊 Caixas por Cliente no Período'; itensGrafico = clientesComSaida; }
+    }
+
+    const maxGrafico = itensGrafico.length ? itensGrafico[0].total : 0;
+    html += `<div class="grafico-h-container"><div class="grafico-h-titulo">${tituloGrafico}</div>`;
+    html += itensGrafico.map(g => {
+      const pct = maxGrafico > 0 ? Math.max(Math.round((g.total / maxGrafico) * 100), 4) : 4;
       return `<div class="barra-h-row"><div class="barra-h-nome">${g.nome}</div><div class="barra-h-track"><div class="barra-h-fill verde" style="width:${pct}%"><span class="barra-h-valor">${g.total}</span></div></div></div>`;
     }).join('');
     html += '</div>';
