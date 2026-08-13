@@ -179,6 +179,7 @@
   <div class="tab" onclick="mudarAba('saidas', this)">📤 Saídas</div>
   <div class="tab" onclick="mudarAba('estoque', this)">📦 Estoque</div>
   <div class="tab" onclick="mudarAba('balanco', this)">⚖️ Balanço</div>
+  <div class="tab" onclick="mudarAba('relatorios', this)">📊 Relatórios</div>
   <div class="tab" onclick="mudarAba('cadastros', this)">⚙️ Cadastros</div>
 </div>
 
@@ -229,6 +230,18 @@
     </div>
     <!-- TABELA -->
     <div id="balanco-conteudo"><div class="loading"><div class="spinner"></div>Calculando balanço...</div></div>
+  </div>
+
+  <div id="secao-relatorios" class="secao">
+    <div class="tabela-container" style="padding:14px 16px">
+      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+        <div><label style="font-size:11px;color:var(--cinza-escuro);text-transform:uppercase;display:block;margin-bottom:4px">Data início</label><input type="date" id="rel-data-ini" style="padding:8px;border:1px solid var(--cinza-medio);border-radius:6px;font-size:13px"></div>
+        <div><label style="font-size:11px;color:var(--cinza-escuro);text-transform:uppercase;display:block;margin-bottom:4px">Data fim</label><input type="date" id="rel-data-fim" style="padding:8px;border:1px solid var(--cinza-medio);border-radius:6px;font-size:13px"></div>
+        <div><label style="font-size:11px;color:var(--cinza-escuro);text-transform:uppercase;display:block;margin-bottom:4px">Cliente</label><select id="rel-cliente" style="padding:8px;border:1px solid var(--cinza-medio);border-radius:6px;font-size:13px;min-width:160px"><option value="">Todos os clientes</option></select></div>
+        <button class="btn-hoje" style="padding:9px 16px;font-size:13px" onclick="carregarRelatorio()">📊 Gerar relatório</button>
+      </div>
+    </div>
+    <div id="relatorio-conteudo"><div class="loading"><div class="spinner"></div>Selecione o período e clique em Gerar.</div></div>
   </div>
 
   <div id="secao-cadastros" class="secao">
@@ -347,10 +360,10 @@ async function salvarEntradas() {
   const btn = document.querySelector('#secao-entradas .btn-salvar');
   btn.disabled = true; btn.textContent = '⏳ Salvando...';
   try {
-    await db.from('entradas').delete().eq('data', dataSel);
     const rows = [];
-    fornecedores.forEach(f => produtos.forEach(p => { const qty = entradasDia[f.id]?.[p.id] || 0; if (qty > 0) rows.push({ data: dataSel, fornecedor_id: f.id, produto_id: p.id, quantidade: qty }); }));
-    if (rows.length > 0) { const { error } = await db.from('entradas').insert(rows); if (error) throw error; }
+    fornecedores.forEach(f => produtos.forEach(p => { rows.push({ data: dataSel, fornecedor_id: f.id, produto_id: p.id, quantidade: entradasDia[f.id]?.[p.id] || 0 }); }));
+    const { error } = await db.from('entradas').upsert(rows, { onConflict: 'data,fornecedor_id,produto_id' });
+    if (error) throw error;
     await atualizarEstoqueDia();
     mostrarToast('✅ Entradas salvas com sucesso!');
     document.querySelectorAll('input.qty.editado').forEach(i => i.classList.remove('editado'));
@@ -423,10 +436,15 @@ async function salvarSaidas() {
   const btn = document.querySelector('#secao-saidas .btn-salvar');
   btn.disabled = true; btn.textContent = '⏳ Salvando...';
   try {
-    await db.from('saidas').delete().eq('data', dataSel);
+    const bdjao = produtos.find(p => p.nome.toLowerCase().includes('bdj'));
     const rows = [];
-    clientes.forEach(c => produtos.forEach(p => { const v = saidasDia[c.id]?.[p.id] || {l1:0,l2:0}; if (v.l1 > 0) rows.push({ data: dataSel, cliente_id: c.id, produto_id: p.id, quantidade: v.l1, linha: 1 }); if (v.l2 > 0) rows.push({ data: dataSel, cliente_id: c.id, produto_id: p.id, quantidade: v.l2, linha: 2 }); }));
-    if (rows.length > 0) { const { error } = await db.from('saidas').insert(rows); if (error) throw error; }
+    clientes.forEach(c => produtos.forEach(p => {
+      const v = saidasDia[c.id]?.[p.id] || {l1:0,l2:0};
+      rows.push({ data: dataSel, cliente_id: c.id, produto_id: p.id, quantidade: v.l1 || 0, linha: 1 });
+      if (bdjao && p.id === bdjao.id) rows.push({ data: dataSel, cliente_id: c.id, produto_id: p.id, quantidade: v.l2 || 0, linha: 2 });
+    }));
+    const { error } = await db.from('saidas').upsert(rows, { onConflict: 'data,cliente_id,produto_id,linha' });
+    if (error) throw error;
     await atualizarEstoqueDia();
     mostrarToast('✅ Saídas salvas com sucesso!');
     document.querySelectorAll('input.qty.editado').forEach(i => i.classList.remove('editado'));
@@ -448,9 +466,8 @@ async function atualizarEstoqueDia() {
   produtos.forEach(p => { totEnt[p.id] = 0; totSai[p.id] = 0; });
   (entDia || []).forEach(r => { if (totEnt[r.produto_id] !== undefined) totEnt[r.produto_id] += r.quantidade || 0; });
   (saiDia || []).forEach(r => { if (totSai[r.produto_id] !== undefined) totSai[r.produto_id] += r.quantidade || 0; });
-  await db.from('estoque').delete().eq('data', dataSel);
   const rows = produtos.map(p => ({ data: dataSel, produto_id: p.id, estoque_anterior: estAntMap[p.id] || 0, total_entradas: totEnt[p.id] || 0, total_saidas: totSai[p.id] || 0, saldo: (estAntMap[p.id] || 0) + (totEnt[p.id] || 0) - (totSai[p.id] || 0) }));
-  await db.from('estoque').insert(rows);
+  await db.from('estoque').upsert(rows, { onConflict: 'data,produto_id' });
 }
 
 async function carregarEstoque() {
@@ -506,14 +523,13 @@ async function salvarEstoqueReal() {
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Salvando...'; }
   try {
     const iniciais = document.querySelectorAll('[data-campo="inicial"]');
-    await db.from('estoque_real').delete().eq('data', dataSel);
     const rows = [];
     iniciais.forEach(inp => {
       const pid = inp.dataset.prod;
       const realInp = document.querySelector(`[data-prod="${pid}"][data-campo="real"]`);
       rows.push({ data: dataSel, produto_id: pid, estoque_inicial: parseInt(inp.value)||0, estoque_real: realInp && realInp.value !== '' ? parseInt(realInp.value) : null });
     });
-    if (rows.length > 0) { const { error } = await db.from('estoque_real').insert(rows); if (error) throw error; }
+    if (rows.length > 0) { const { error } = await db.from('estoque_real').upsert(rows, { onConflict: 'data,produto_id' }); if (error) throw error; }
     mostrarToast('✅ Estoque salvo com sucesso!');
     document.querySelectorAll('input.qty.editado').forEach(i => i.classList.remove('editado'));
   } catch(e) { mostrarToast('❌ Erro ao salvar: ' + e.message, true); }
@@ -785,6 +801,116 @@ async function adicionarCadastro(tabela, inputId) {
   mostrarToast(`✅ ${nome} adicionado!`);
 }
 
+// ===================== RELATÓRIOS =====================
+function inicializarPeriodoRelatorio() {
+  const hoje = new Date();
+  const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  document.getElementById('rel-data-ini').value = primeiroDia.toISOString().split('T')[0];
+  document.getElementById('rel-data-fim').value = hoje.toISOString().split('T')[0];
+}
+
+function preencherSelectClientesRelatorio() {
+  const sel = document.getElementById('rel-cliente');
+  const valorAtual = sel.value;
+  sel.innerHTML = '<option value="">Todos os clientes</option>' + clientes.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
+  sel.value = valorAtual;
+}
+
+// Busca todas as saídas do período, paginando de 1000 em 1000 (limite padrão do Supabase)
+async function buscarSaidasPeriodo(dataIni, dataFim, clienteId) {
+  const pageSize = 1000;
+  let from = 0, todos = [];
+  while (true) {
+    let q = db.from('saidas').select('*').gte('data', dataIni).lte('data', dataFim).range(from, from + pageSize - 1);
+    if (clienteId) q = q.eq('cliente_id', clienteId);
+    const { data, error } = await q;
+    if (error) throw error;
+    todos = todos.concat(data || []);
+    if (!data || data.length < pageSize) break;
+    from += pageSize;
+  }
+  return todos;
+}
+
+// Soma quantidade por produto (junta linha 1 e 2 do Bandejão) e agrupa "X Insumo" dentro de "X", igual ao Balanço
+function agruparSaidasPorProduto(rows) {
+  const totalPorProduto = {};
+  produtos.forEach(p => totalPorProduto[p.id] = 0);
+  rows.forEach(r => { if (totalPorProduto[r.produto_id] !== undefined) totalPorProduto[r.produto_id] += r.quantidade || 0; });
+  const grupos = [];
+  const processados = new Set();
+  produtos.forEach(p => {
+    if (processados.has(p.id)) return;
+    const isInsumo = p.nome.toLowerCase().includes('insumo');
+    if (isInsumo) { processados.add(p.id); return; }
+    const nomeInsumo = (p.nome + ' Insumo').toLowerCase();
+    const insumo = produtos.find(x => x.nome.toLowerCase() === nomeInsumo);
+    let total = totalPorProduto[p.id] || 0;
+    processados.add(p.id);
+    if (insumo) { total += totalPorProduto[insumo.id] || 0; processados.add(insumo.id); }
+    grupos.push({ nome: p.nome, total });
+  });
+  return grupos.filter(g => g.total > 0).sort((a, b) => b.total - a.total);
+}
+
+async function carregarRelatorio() {
+  const dataIni = document.getElementById('rel-data-ini').value;
+  const dataFim = document.getElementById('rel-data-fim').value;
+  const clienteId = document.getElementById('rel-cliente').value;
+  const conteudo = document.getElementById('relatorio-conteudo');
+  if (!dataIni || !dataFim) { conteudo.innerHTML = '<div class="loading">Selecione a data início e a data fim.</div>'; return; }
+  if (dataIni > dataFim) { conteudo.innerHTML = '<div class="loading">A data início não pode ser depois da data fim.</div>'; return; }
+  conteudo.innerHTML = '<div class="loading"><div class="spinner"></div>Calculando relatório...</div>';
+  try {
+    const rowsFiltrado = await buscarSaidasPeriodo(dataIni, dataFim, clienteId || null);
+    const grupos = agruparSaidasPorProduto(rowsFiltrado);
+    const totalCaixas = grupos.reduce((s, g) => s + g.total, 0);
+    const clienteNome = clienteId ? (clientes.find(c => c.id === clienteId)?.nome || '') : '';
+
+    let cardCliente = '';
+    if (clienteId) {
+      const rowsGeral = await buscarSaidasPeriodo(dataIni, dataFim, null);
+      const totalGeral = rowsGeral.reduce((s, r) => s + (r.quantidade || 0), 0);
+      const pctCliente = totalGeral > 0 ? ((totalCaixas / totalGeral) * 100).toFixed(1) : '0.0';
+      cardCliente = `<div class="tabela-container" style="padding:14px 18px;border-left:4px solid var(--azul);margin-bottom:16px">
+        <div style="font-size:12px;color:var(--cinza-escuro);text-transform:uppercase">${clienteNome} no período</div>
+        <div style="font-size:19px;font-weight:800;color:var(--azul)">${totalCaixas} caixas — ${pctCliente}% do total geral (${totalGeral})</div>
+      </div>`;
+    }
+
+    const umDia = 24*60*60*1000;
+    const dias = Math.round((new Date(dataFim) - new Date(dataIni)) / umDia) + 1;
+    let html = `<div class="cards-resumo">
+      <div class="card-resumo azul"><div class="valor">${totalCaixas}</div><div class="label">Total de Caixas</div></div>
+      <div class="card-resumo"><div class="valor">${grupos.length}</div><div class="label">Itens com Saída</div></div>
+      <div class="card-resumo laranja"><div class="valor">${dias}</div><div class="label">Dias no Período</div></div>
+    </div>`;
+    html += cardCliente;
+
+    if (!grupos.length) {
+      html += '<div class="loading">Nenhuma saída encontrada nesse período.</div>';
+      conteudo.innerHTML = html;
+      return;
+    }
+
+    html += `<div class="tabela-container"><div class="tabela-titulo" style="background:var(--azul)">📦 Caixas por Item${clienteNome ? ' — ' + clienteNome : ''}</div><div class="tabela-scroll"><table><thead><tr><th>Item</th><th>Caixas</th><th>% do total</th></tr></thead><tbody>`;
+    grupos.forEach(g => { html += `<tr><td>${g.nome}</td><td>${g.total}</td><td>${totalCaixas > 0 ? ((g.total/totalCaixas)*100).toFixed(1) : '0.0'}%</td></tr>`; });
+    html += `<tr class="total-row"><td>TOTAL</td><td>${totalCaixas}</td><td>100%</td></tr></tbody></table></div></div>`;
+
+    const max = grupos[0].total;
+    html += `<div class="grafico-h-container"><div class="grafico-h-titulo">📊 Proporção de Caixas por Item</div>`;
+    html += grupos.map(g => {
+      const pct = Math.max(Math.round((g.total / max) * 100), 4);
+      return `<div class="barra-h-row"><div class="barra-h-nome">${g.nome}</div><div class="barra-h-track"><div class="barra-h-fill verde" style="width:${pct}%"><span class="barra-h-valor">${g.total}</span></div></div></div>`;
+    }).join('');
+    html += '</div>';
+
+    conteudo.innerHTML = html;
+  } catch (e) {
+    conteudo.innerHTML = `<div class="loading">❌ Erro ao gerar relatório: ${e.message}</div>`;
+  }
+}
+
 // ===================== NAVEGAÇÃO =====================
 function mudarAba(aba, el) {
   document.querySelectorAll('.secao').forEach(s => s.classList.remove('ativa'));
@@ -793,6 +919,7 @@ function mudarAba(aba, el) {
   el.classList.add('active');
   if (aba === 'estoque') carregarEstoque();
   if (aba === 'balanco') carregarBalanco();
+  if (aba === 'relatorios') { preencherSelectClientesRelatorio(); if (!document.getElementById('rel-data-ini').value) inicializarPeriodoRelatorio(); carregarRelatorio(); }
   if (aba === 'cadastros') carregarCadastrosUI();
 }
 
