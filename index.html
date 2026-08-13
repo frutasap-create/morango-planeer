@@ -21,7 +21,8 @@
     --azul: #1565c0;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f0; color: var(--texto); min-height: 100vh; }
+  html { overflow-x: hidden; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f0; color: var(--texto); min-height: 100vh; overflow-x: hidden; width: 100%; }
 
   header { background: var(--verde); color: white; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
   header h1 { font-size: 18px; font-weight: 700; letter-spacing: 0.5px; }
@@ -34,7 +35,7 @@
   .tab:hover { color: white; }
   .tab.active { color: white; border-bottom-color: var(--laranja); }
 
-  main { padding: 16px; max-width: 1200px; margin: 0 auto; }
+  main { padding: 16px; max-width: 1200px; margin: 0 auto; overflow-x: hidden; }
   .secao { display: none; }
   .secao.ativa { display: block; }
 
@@ -47,7 +48,7 @@
   .card-resumo.azul .valor { color: var(--azul); }
   .card-resumo .label { font-size: 11px; color: var(--cinza-escuro); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
 
-  .tabela-container { background: white; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 16px; }
+  .tabela-container { background: white; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 16px; max-width: 100%; overflow: hidden; }
   .tabela-titulo { background: var(--verde); color: white; padding: 10px 16px; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; border-radius: 10px 10px 0 0; }
   .tabela-titulo.laranja { background: var(--laranja); }
 
