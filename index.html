@@ -193,9 +193,100 @@
     .tabela-scroll table { font-size: 12px; }
     .tabela-scroll input.qty { width: 44px; font-size: 11px; }
   }
+
+  /* =====================================================================
+     VISUAL GLASS (somente aparência: nenhuma lógica foi alterada)
+     Para voltar ao visual antigo, apague tudo daqui até o fim do <style>
+     e a linha <div class="fundo-glass"> logo abaixo de <body>.
+     ===================================================================== */
+  :root {
+    --g-fundo:
+      radial-gradient(520px circle at 0% 0%, rgba(244,63,94,0.20), transparent 65%),
+      radial-gradient(640px circle at 100% 100%, rgba(28,152,66,0.24), transparent 65%),
+      radial-gradient(460px circle at 72% 38%, rgba(243,146,0,0.16), transparent 65%),
+      linear-gradient(135deg, #eef6f0, #fdf3e7);
+    --g-bg: rgba(255,255,255,0.58);
+    --g-bg-forte: rgba(255,255,255,0.74);
+    --g-border: rgba(255,255,255,0.80);
+    --g-shadow: 0 6px 24px rgba(22,110,48,0.14), inset 0 1px 0 rgba(255,255,255,0.9);
+    --g-thead: rgba(255,255,255,0.45);
+    --g-input: rgba(255,255,255,0.75);
+    --g-track: rgba(0,0,0,0.07);
+    --g-header: rgba(28,152,66,0.86);
+    --g-tabs: rgba(255,255,255,0.55);
+    --g-blur: blur(14px) saturate(140%);
+    --g-radius: 16px;
+  }
+  :root[data-theme=dark] {
+    --g-fundo:
+      radial-gradient(520px circle at 0% 0%, rgba(225,29,72,0.42), transparent 65%),
+      radial-gradient(640px circle at 100% 100%, rgba(22,163,74,0.38), transparent 65%),
+      radial-gradient(460px circle at 72% 38%, rgba(124,58,237,0.30), transparent 65%),
+      linear-gradient(135deg, #0b1020, #1a0f2e);
+    --g-bg: rgba(255,255,255,0.07);
+    --g-bg-forte: rgba(255,255,255,0.12);
+    --g-border: rgba(255,255,255,0.16);
+    --g-shadow: 0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.12);
+    --g-thead: rgba(255,255,255,0.06);
+    --g-input: rgba(255,255,255,0.08);
+    --g-track: rgba(255,255,255,0.08);
+    --g-header: rgba(17,26,43,0.55);
+    --g-tabs: rgba(14,22,38,0.50);
+  }
+
+  /* Camada de fundo colorido: sem cor atrás, o vidro não aparece */
+  .fundo-glass { position: fixed; inset: 0; z-index: 0; pointer-events: none; background: var(--g-fundo); }
+  header, .tabs, main { position: relative; z-index: 1; }
+  header { z-index: 3; }
+  .tabs { z-index: 2; }
+
+  header { background: var(--g-header); -webkit-backdrop-filter: var(--g-blur); backdrop-filter: var(--g-blur); border-bottom: 1px solid rgba(255,255,255,0.20); }
+  .tabs { background: var(--g-tabs); -webkit-backdrop-filter: var(--g-blur); backdrop-filter: var(--g-blur); border-bottom: 1px solid var(--g-border); }
+  :root:not([data-theme=dark]) .tab.active { color: var(--verde-escuro); }
+
+  /* Cards, tabelas, gráficos e cadastros viram vidro */
+  .card-resumo, .estoque-card, .tabela-container, .grafico-container, .grafico-h-container, .cadastro-grupo {
+    background: var(--g-bg);
+    -webkit-backdrop-filter: var(--g-blur);
+    backdrop-filter: var(--g-blur);
+    border-radius: var(--g-radius);
+    box-shadow: var(--g-shadow);
+  }
+  /* mantém a cor de destaque (verde/laranja/azul) do topo e da lateral */
+  .card-resumo { border-left-color: var(--g-border); border-right-color: var(--g-border); border-bottom-color: var(--g-border); }
+  .estoque-card { border-top-color: var(--g-border); border-right-color: var(--g-border); border-bottom-color: var(--g-border); }
+  .tabela-container, .grafico-container, .grafico-h-container, .cadastro-grupo { border-color: var(--g-border); }
+
+  .tabela-titulo { border-radius: calc(var(--g-radius) - 1px) calc(var(--g-radius) - 1px) 0 0; }
+  .tabela-scroll { border-radius: 0 0 var(--g-radius) var(--g-radius); }
+  .tabela-scroll table { width: 100%; }
+  thead th { background: var(--g-thead); }
+  input.qty, .cadastro-novo input, .cadastro-item { background: var(--g-input); }
+  .barra-h-track { background: var(--g-track); }
+
+  .card-resumo, .estoque-card { transition: transform 0.25s ease, background 0.25s ease; }
+  @media (hover: hover) {
+    .card-resumo:hover, .estoque-card:hover { transform: translateY(-3px); background: var(--g-bg-forte); }
+  }
+
+  @media (max-width: 768px) {
+    :root { --g-blur: blur(10px) saturate(130%); --g-radius: 14px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .card-resumo, .estoque-card { transition: none; }
+    .card-resumo:hover, .estoque-card:hover { transform: none; }
+  }
+  /* Sem suporte a vidro (ou usuário pediu menos transparência): volta a fundos sólidos */
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    :root:root:root { --g-bg: var(--card-bg); --g-bg-forte: var(--card-bg); --g-thead: var(--cinza); --g-input: var(--input-bg); --g-track: var(--cinza); --g-header: var(--header-bg); --g-tabs: var(--tabs-bg); --g-blur: none; }
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    :root:root:root { --g-bg: var(--card-bg); --g-bg-forte: var(--card-bg); --g-thead: var(--cinza); --g-input: var(--input-bg); --g-track: var(--cinza); --g-header: var(--header-bg); --g-tabs: var(--tabs-bg); --g-blur: none; }
+  }
 </style>
 </head>
 <body>
+<div class="fundo-glass" aria-hidden="true"></div>
 
 <header>
   <h1>🍓 Planner Morango — AP Frutas</h1>
