@@ -287,13 +287,126 @@
   /* RELATÓRIOS - campos que seguem tema claro/escuro/glass */
   .rel-campo { padding: 8px; border: 1px solid var(--borda); border-radius: 6px; font-size: 13px; color: var(--texto); background: var(--input-bg); }
   .rel-campo:focus { outline: none; border-color: var(--verde); }
+
+  /* =====================================================================
+     VISUAL TECH (azul / ciano / violeta) - modo escuro. Só aparência.
+     ===================================================================== */
+  :root[data-theme=dark] {
+    --fundo:#050a18; --card-bg:#0b1226; --input-bg:#080e1f; --borda:rgba(96,165,250,.20);
+    --cinza:#0d1630; --cinza-escuro:#8a9bbd; --texto:#e8eefc;
+    --g-fundo:
+      radial-gradient(620px circle at 8% -4%, rgba(59,130,246,.50), transparent 62%),
+      radial-gradient(560px circle at 100% 8%, rgba(139,92,246,.40), transparent 62%),
+      radial-gradient(640px circle at 85% 105%, rgba(34,211,238,.30), transparent 62%),
+      radial-gradient(520px circle at 0% 95%, rgba(37,99,235,.28), transparent 62%),
+      linear-gradient(160deg, #0a1736 0%, #060c1f 55%, #02040c 100%);
+    --g-bg: rgba(13,22,48,.55);
+    --g-bg-forte: rgba(22,36,78,.70);
+    --g-border: rgba(96,165,250,.24);
+    --g-shadow: 0 10px 34px rgba(0,0,0,.45), inset 0 1px 0 rgba(147,197,253,.14);
+    --g-thead: rgba(12,22,50,.85);
+    --g-input: rgba(8,14,32,.70);
+    --g-track: rgba(96,165,250,.10);
+    --g-header: rgba(6,12,30,.66);
+    --g-tabs: rgba(6,12,30,.58);
+    --g-radius: 16px;
+    color-scheme: dark;
+  }
+  :root[data-theme=dark] header h1 .logo-t{
+    background:linear-gradient(90deg,#fff 0%,#9ec5ff 55%,#67e8f9 100%);
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; color:transparent;
+  }
+  :root[data-theme=dark] header{ border-bottom-color:var(--g-border); }
+  :root[data-theme=dark] .tab:hover{ background:rgba(96,165,250,.08); }
+  :root[data-theme=dark] .tab.active{ color:#22d3ee; border-bottom-color:#22d3ee; text-shadow:0 0 14px rgba(34,211,238,.45); }
+  :root[data-theme=dark] .tabela-titulo{ background:linear-gradient(90deg,rgba(37,99,235,.85),rgba(124,58,237,.75)); }
+  :root[data-theme=dark] .tabela-titulo.laranja{ background:linear-gradient(90deg,rgba(234,88,12,.85),rgba(245,158,11,.75)); }
+  :root[data-theme=dark] .cadastro-titulo{ background:linear-gradient(90deg,rgba(37,99,235,.85),rgba(124,58,237,.75)); }
+  :root[data-theme=dark] .btn-salvar{ background:linear-gradient(135deg,#2563eb,#7c3aed); box-shadow:0 4px 20px rgba(59,130,246,.35); }
+  :root[data-theme=dark] .btn-salvar:hover{ filter:brightness(1.12); box-shadow:0 0 24px rgba(59,130,246,.5); }
+  :root[data-theme=dark] .btn-hoje{ box-shadow:0 0 14px rgba(243,146,0,.25); }
+
+  :root[data-theme=dark] .tabela-titulo[style*="--azul"]{ background:linear-gradient(90deg,rgba(37,99,235,.85),rgba(124,58,237,.75)) !important; }
+  /* brilho suave ao passar o mouse nos cards (cor semântica de cada um) */
+  .card-resumo, .estoque-card{ position:relative; overflow:hidden; }
+  .card-resumo::before, .estoque-card::before{ content:""; position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .3s ease;
+    background:radial-gradient(220px circle at 85% 0%, var(--kc,rgba(59,130,246,.30)), transparent 70%); }
+  .card-resumo:hover::before, .estoque-card:hover::before{ opacity:1; }
+  .card-resumo{ --kc:rgba(52,211,153,.28); } .card-resumo.laranja{ --kc:rgba(251,146,60,.28); } .card-resumo.azul{ --kc:rgba(59,130,246,.35); }
+  .estoque-card{ --kc:rgba(52,211,153,.28); } .estoque-card.negativo{ --kc:rgba(248,113,113,.32); } .estoque-card.zero{ --kc:rgba(251,146,60,.28); }
+  .card-resumo .valor, .estoque-card .saldo, tbody td{ font-variant-numeric:tabular-nums; }
+  tbody tr{ transition:background .15s ease; }
+
+  /* foco visível e campos com brilho */
+  input:focus-visible, select:focus-visible, button:focus-visible, .tab:focus-visible{ outline:2px solid #22d3ee; outline-offset:2px; }
+  :root[data-theme=dark] input.qty:focus, :root[data-theme=dark] .rel-campo:focus, :root[data-theme=dark] .cadastro-novo input:focus{
+    border-color:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,.25), 0 0 16px rgba(34,211,238,.18); }
+  :root[data-theme=dark] select.rel-campo option{ background:#0a1128; color:#e8eefc; }
+  :root[data-theme=dark] .barra-h-fill.verde{ background:linear-gradient(90deg,#2563eb,#22d3ee); }
+  :root[data-theme=dark] .grafico-h-titulo, :root[data-theme=dark] .grafico-titulo{ color:var(--texto) !important; }
+  @media (prefers-reduced-motion: reduce){ .card-resumo::before, .estoque-card::before, tbody tr{ transition:none; } }
+
+  /* =====================================================================
+     VISUAL TECH - modo CLARO (glass azul / ciano / violeta). Só aparência.
+     ===================================================================== */
+  :root:not([data-theme=dark]) {
+    --fundo:#eef3fc; --borda:rgba(37,99,235,.16);
+    --g-fundo:
+      radial-gradient(620px circle at 6% -4%, rgba(59,130,246,.34), transparent 62%),
+      radial-gradient(560px circle at 100% 10%, rgba(139,92,246,.26), transparent 62%),
+      radial-gradient(640px circle at 85% 105%, rgba(34,211,238,.28), transparent 62%),
+      radial-gradient(520px circle at 0% 95%, rgba(99,102,241,.18), transparent 62%),
+      linear-gradient(160deg, #eaf1ff 0%, #f3f0ff 55%, #eafbff 100%);
+    --g-bg: rgba(255,255,255,.62);
+    --g-bg-forte: rgba(255,255,255,.82);
+    --g-border: rgba(255,255,255,.90);
+    --g-shadow: 0 8px 30px rgba(37,99,235,.14), inset 0 1px 0 rgba(255,255,255,.95);
+    --g-thead: rgba(219,230,252,.70);
+    --g-input: rgba(255,255,255,.80);
+    --g-track: rgba(37,99,235,.08);
+    --g-header: linear-gradient(135deg, rgba(37,99,235,.92), rgba(124,58,237,.88));
+    --g-tabs: rgba(255,255,255,.58);
+  }
+  :root:not([data-theme=dark]) header{ border-bottom-color:rgba(255,255,255,.35); box-shadow:0 4px 24px rgba(37,99,235,.22); }
+  :root:not([data-theme=dark]) .tab{ color:#5b6b8c; }
+  :root:not([data-theme=dark]) .tab:hover{ background:rgba(37,99,235,.07); color:#1e3a8a; }
+  :root:not([data-theme=dark]) .tab.active{ color:#1d4ed8; border-bottom-color:#06b6d4; }
+  :root:not([data-theme=dark]) .tabela-titulo,
+  :root:not([data-theme=dark]) .cadastro-titulo,
+  :root:not([data-theme=dark]) .tabela-titulo[style*="--azul"]{ background:linear-gradient(90deg,#2563eb,#7c3aed) !important; }
+  :root:not([data-theme=dark]) .tabela-titulo.laranja{ background:linear-gradient(90deg,#ea580c,#f59e0b) !important; }
+  :root:not([data-theme=dark]) .btn-salvar{ background:linear-gradient(135deg,#2563eb,#7c3aed); box-shadow:0 4px 18px rgba(59,130,246,.35); }
+  :root:not([data-theme=dark]) .btn-salvar:hover{ filter:brightness(1.08); }
+  :root:not([data-theme=dark]) .barra-h-fill.verde{ background:linear-gradient(90deg,#2563eb,#06b6d4); }
+  :root:not([data-theme=dark]) input.qty:focus, :root:not([data-theme=dark]) .rel-campo:focus, :root:not([data-theme=dark]) .cadastro-novo input:focus{
+    border-color:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,.22); }
+  :root:not([data-theme=dark]) tbody tr:hover{ background:rgba(59,130,246,.07); }
+  :root:not([data-theme=dark]) tr.total-row td{ background:rgba(59,130,246,.07); }
+
+  /* ===== ÍCONES FUTURISTAS nos cards (igual ao Preço de Venda) ===== */
+  .card-resumo{ text-align:left; padding:16px; }
+  .card-resumo .top{ display:flex; align-items:center; gap:10px; }
+  .card-resumo .label{ margin-top:0; font-weight:600; letter-spacing:.5px; }
+  .card-resumo .valor{ margin-top:12px; font-size:1.6rem; letter-spacing:-.3px; }
+  .ic{ width:34px; height:34px; flex:none; border-radius:10px; display:inline-flex; align-items:center; justify-content:center;
+    color:var(--ic-c,var(--verde)); background:var(--ic-b,rgba(52,211,153,.12)); border:1px solid var(--ic-bd,rgba(52,211,153,.40)); }
+  .ic svg{ width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+  .card-resumo{ --ic-c:var(--verde); --ic-b:rgba(52,211,153,.12); --ic-bd:rgba(52,211,153,.42); }
+  .card-resumo.laranja{ --ic-c:var(--laranja); --ic-b:rgba(251,146,60,.12); --ic-bd:rgba(251,146,60,.42); }
+  .card-resumo.azul{ --ic-c:var(--azul); --ic-b:rgba(59,130,246,.14); --ic-bd:rgba(96,165,250,.45); }
+  .estoque-card{ --ic-c:var(--verde); --ic-b:rgba(52,211,153,.12); --ic-bd:rgba(52,211,153,.42); }
+  .estoque-card.negativo{ --ic-c:var(--vermelho); --ic-b:rgba(248,113,113,.14); --ic-bd:rgba(248,113,113,.45); }
+  .estoque-card.zero{ --ic-c:var(--laranja); --ic-b:rgba(251,146,60,.12); --ic-bd:rgba(251,146,60,.42); }
+  .estoque-card .produto-nome{ display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+  .estoque-card .ic{ width:30px; height:30px; }
+  @media (max-width:768px){ .card-resumo{ padding:12px; } .card-resumo .valor{ font-size:1.25rem; } .card-resumo .top{ gap:8px; } .ic{ width:28px; height:28px; } .card-resumo .label{ font-size:10px; } }
 </style>
 </head>
 <body>
 <div class="fundo-glass" aria-hidden="true"></div>
 
 <header>
-  <h1>🍓 Planner Morango — AP Frutas</h1>
+  <h1><span class="logo-e">🍓</span> <span class="logo-t">Planner Morango — AP Frutas</span></h1>
   <div class="data-selector">
     <button class="btn-tema" id="temaBtn" onclick="alternarTema()">☀️ Claro</button>
     <input type="date" id="dataSelecionada">
@@ -444,8 +557,8 @@ function renderizarEntradas() {
   fornecedores.forEach(f => produtos.forEach(p => totaisProd[p.id] += (entradasDia[f.id]?.[p.id] || 0)));
   const totalGeral = Object.values(totaisProd).reduce((a,b) => a+b, 0);
   document.getElementById('cards-entradas').innerHTML = `
-    <div class="card-resumo"><div class="valor">${totalGeral}</div><div class="label">Total Entradas</div></div>
-    ${produtos.map(p => `<div class="card-resumo"><div class="valor">${totaisProd[p.id]}</div><div class="label">${p.nome}</div></div>`).join('')}`;
+    <div class="card-resumo"><div class="top"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg></span><span class="label">Total Entradas</span></div><div class="valor">${totalGeral}</div></div>
+    ${produtos.map(p => `<div class="card-resumo"><div class="top"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 7.7 5 7.7-5"/></svg></span><span class="label">${p.nome}</span></div><div class="valor">${totaisProd[p.id]}</div></div>`).join('')}`;
   let html = `<table><thead><tr><th>Fornecedor</th>${produtos.map(p => `<th>${p.nome}</th>`).join('')}<th>Total</th></tr></thead><tbody>`;
   fornecedores.forEach(f => {
     const totalForn = produtos.reduce((s, p) => s + (entradasDia[f.id]?.[p.id] || 0), 0);
@@ -476,7 +589,7 @@ function atualizarEntrada(input) {
     const tp = {}; produtos.forEach(p => tp[p.id] = 0);
     fornecedores.forEach(f => produtos.forEach(p => tp[p.id] += (entradasDia[f.id]?.[p.id] || 0)));
     const tgg = Object.values(tp).reduce((a,b) => a+b, 0);
-    cards.innerHTML = `<div class="card-resumo"><div class="valor">${tgg}</div><div class="label">Total Entradas</div></div>${produtos.map(p => `<div class="card-resumo"><div class="valor">${tp[p.id]}</div><div class="label">${p.nome}</div></div>`).join('')}`;
+    cards.innerHTML = `<div class="card-resumo"><div class="top"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg></span><span class="label">Total Entradas</span></div><div class="valor">${tgg}</div></div>${produtos.map(p => `<div class="card-resumo"><div class="top"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 7.7 5 7.7-5"/></svg></span><span class="label">${p.nome}</span></div><div class="valor">${tp[p.id]}</div></div>`).join('')}`;
   }
   renderizarGraficoFornecedores();
   // Atualizar balanço em tempo real se estiver visível
@@ -516,8 +629,8 @@ function renderizarSaidas() {
   clientes.forEach(c => produtos.forEach(p => { const v = saidasDia[c.id]?.[p.id] || { l1:0, l2:0 }; totaisProd[p.id] += (v.l1||0)+(v.l2||0); }));
   const totalGeral = Object.values(totaisProd).reduce((a,b) => a+b, 0);
   document.getElementById('cards-saidas').innerHTML = `
-    <div class="card-resumo laranja"><div class="valor">${totalGeral}</div><div class="label">Total Saídas</div></div>
-    ${produtos.map(p => `<div class="card-resumo laranja"><div class="valor">${totaisProd[p.id]}</div><div class="label">${p.nome}</div></div>`).join('')}`;
+    <div class="card-resumo laranja"><div class="top"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21V9"/><path d="m7 14 5-5 5 5"/><path d="M5 3h14"/></svg></span><span class="label">Total Saídas</span></div><div class="valor">${totalGeral}</div></div>
+    ${produtos.map(p => `<div class="card-resumo laranja"><div class="top"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 7.7 5 7.7-5"/></svg></span><span class="label">${p.nome}</span></div><div class="valor">${totaisProd[p.id]}</div></div>`).join('')}`;
   let html = `<table><thead><tr><th>Cliente</th>${produtos.map(p => { if (bdjao && p.id === bdjao.id) return `<th>${p.nome} L1</th><th>${p.nome} L2</th><th>${p.nome} Total</th>`; return `<th>${p.nome}</th>`; }).join('')}<th>Total</th></tr></thead><tbody>`;
   clientes.forEach(c => {
     let totalCli = 0;
@@ -606,10 +719,10 @@ async function carregarEstoque() {
   const totalPrevisao = produtos.reduce((s, p) => { const ei = estRealMap[p.id]?.estoque_inicial ?? estMap[p.id]?.estoque_anterior ?? 0; const ent = estMap[p.id]?.total_entradas || 0; const sai = estMap[p.id]?.total_saidas || 0; return s + ei + ent - sai; }, 0);
   const totalReal = produtos.reduce((s, p) => s + (estRealMap[p.id]?.estoque_real ?? 0), 0);
   document.getElementById('cards-estoque-resumo').innerHTML = `
-    <div class="card-resumo"><div class="valor">${totalEnt}</div><div class="label">Total Entradas</div></div>
-    <div class="card-resumo laranja"><div class="valor">${totalSai}</div><div class="label">Total Saídas</div></div>
-    <div class="card-resumo azul"><div class="valor">${totalPrevisao}</div><div class="label">Previsão Final</div></div>
-    <div class="card-resumo" style="border-top-color:#9c27b0"><div class="valor" style="color:#9c27b0">${totalReal}</div><div class="label">Real Confirmado</div></div>`;
+    <div class="card-resumo"><div class="top"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg></span><span class="label">Total Entradas</span></div><div class="valor">${totalEnt}</div></div>
+    <div class="card-resumo laranja"><div class="top"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21V9"/><path d="m7 14 5-5 5 5"/><path d="M5 3h14"/></svg></span><span class="label">Total Saídas</span></div><div class="valor">${totalSai}</div></div>
+    <div class="card-resumo azul"><div class="top"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg></span><span class="label">Previsão Final</span></div><div class="valor">${totalPrevisao}</div></div>
+    <div class="card-resumo" style="border-top-color:#9c27b0"><div class="top"><span class="ic" style="color:#9c27b0"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg></span><span class="label">Real Confirmado</span></div><div class="valor" style="color:#9c27b0">${totalReal}</div></div>`;
   let html = `<div class="tabela-container"><div class="tabela-titulo azul" style="background:var(--azul)">📦 Estoque do Dia — ${formatarData(dataSel)}</div><div class="tabela-scroll"><table><thead><tr><th>Produto</th><th>Estoque Inicial</th><th>+ Entradas</th><th>− Saídas</th><th>= Previsão Final</th><th>✅ Real</th></tr></thead><tbody>`;
   produtos.forEach(p => {
     const e = estMap[p.id] || { total_entradas:0, total_saidas:0, estoque_anterior:0 };
@@ -793,10 +906,10 @@ function atualizarBalancoTempoReal() {
 
   // Cards resumo
   document.getElementById('cards-balanco').innerHTML = `
-    <div class="card-resumo"><div class="valor" style="color:var(--verde)">${totalSobra}</div><div class="label">Total Sobra</div></div>
-    <div class="card-resumo laranja"><div class="valor" style="color:var(--vermelho)">${totalFalta}</div><div class="label">Total Falta</div></div>
-    <div class="card-resumo azul"><div class="valor">${grupos.filter(g=>g.saldo>0).length}</div><div class="label">Produtos com Sobra</div></div>
-    <div class="card-resumo" style="border-top-color:var(--vermelho)"><div class="valor" style="color:var(--vermelho)">${grupos.filter(g=>g.saldo<0).length}</div><div class="label">Produtos em Falta</div></div>`;
+    <div class="card-resumo"><div class="top"><span class="ic" style="color:var(--verde)"><svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></span><span class="label">Total Sobra</span></div><div class="valor" style="color:var(--verde)">${totalSobra}</div></div>
+    <div class="card-resumo laranja"><div class="top"><span class="ic" style="color:var(--vermelho)"><svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg></span><span class="label">Total Falta</span></div><div class="valor" style="color:var(--vermelho)">${totalFalta}</div></div>
+    <div class="card-resumo azul"><div class="top"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 7.7 5 7.7-5"/></svg></span><span class="label">Produtos com Sobra</span></div><div class="valor">${grupos.filter(g=>g.saldo>0).length}</div></div>
+    <div class="card-resumo" style="border-top-color:var(--vermelho)"><div class="top"><span class="ic" style="color:var(--vermelho)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span><span class="label">Produtos em Falta</span></div><div class="valor" style="color:var(--vermelho)">${grupos.filter(g=>g.saldo<0).length}</div></div>`;
 
   // Gráfico de barras (passa grupos como saldos)
   renderizarGrafico(grupos.map(g => ({ produto: { nome: g.nome }, ent: g.ent, sai: g.sai, saldo: g.saldo })));
@@ -808,7 +921,7 @@ function atualizarBalancoTempoReal() {
     const emoji = saldo > 0 ? '✅' : saldo < 0 ? '❌' : '➡️';
     const label = saldo > 0 ? 'SOBRA' : saldo < 0 ? 'FALTA' : 'ZERADO';
     htmlCards += `<div class="estoque-card ${classe}">
-      <div class="produto-nome">${nome}${agrupado ? ' <span style="font-size:9px;opacity:0.7">(+Insumo)</span>' : ''}</div>
+      <div class="produto-nome"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 7.7 5 7.7-5"/></svg></span><span>${nome}${agrupado ? ' <span style="font-size:9px;opacity:0.7">(+Insumo)</span>' : ''}</span></div>
       <div class="saldo">${saldo > 0 ? '+' : ''}${saldo}</div>
       <div style="font-size:11px;font-weight:700;margin-top:2px;color:${saldo>0?'var(--verde)':saldo<0?'var(--vermelho)':'var(--laranja)'}">${emoji} ${label}</div>
       <div class="detalhes">Inicial: ${inicial}<br>+ Entradas: ${ent}<br>− Saídas: ${sai}${detalhe ? '<br><em>'+detalhe+'</em>' : ''}</div>
@@ -1006,9 +1119,9 @@ async function carregarRelatorio() {
     const umDia = 24*60*60*1000;
     const dias = Math.round((new Date(dataFim) - new Date(dataIni)) / umDia) + 1;
     let html = `<div class="cards-resumo">
-      <div class="card-resumo azul"><div class="valor">${totalCaixas}</div><div class="label">Total de Caixas</div></div>
-      <div class="card-resumo"><div class="valor">${grupos.length}</div><div class="label">Itens com Saída</div></div>
-      <div class="card-resumo laranja"><div class="valor">${dias}</div><div class="label">Dias no Período</div></div>
+      <div class="card-resumo azul"><div class="top"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 7.7 5 7.7-5"/></svg></span><span class="label">Total de Caixas</span></div><div class="valor">${totalCaixas}</div></div>
+      <div class="card-resumo"><div class="top"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></svg></span><span class="label">Itens com Saída</span></div><div class="valor">${grupos.length}</div></div>
+      <div class="card-resumo laranja"><div class="top"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg></span><span class="label">Dias no Período</span></div><div class="valor">${dias}</div></div>
     </div>`;
     html += cardCliente;
 
