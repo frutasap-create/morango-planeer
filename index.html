@@ -503,6 +503,7 @@
         <div><label class="cv-lbl">Data início</label><input type="date" id="rt-ini" class="cv-sel"></div>
         <div><label class="cv-lbl">Data fim</label><input type="date" id="rt-fim" class="cv-sel"></div>
         <div><label class="cv-lbl">Cliente</label><select id="rt-cliente" class="cv-sel" style="min-width:180px"><option value="">Todos os clientes</option></select></div>
+        <label style="font-size:13px;color:var(--cinza-escuro);display:flex;gap:6px;align-items:center;padding-bottom:9px"><input type="checkbox" id="rt-frete"> Incluir frete no lucro</label>
         <button class="btn-hoje" style="padding:9px 16px;font-size:13px" onclick="carregarRentabilidade()">📈 Gerar rentabilidade</button>
       </div>
     </div>
@@ -1190,20 +1191,23 @@ async function carregarRelatorio() {
 }
 
 // ===================== CUSTO DE VENDA + RENTABILIDADE =====================
-// Lê custos, descontos e prazos do banco do app "Formação de Preço de Venda" (somente leitura)
-// e guarda no banco do Planner: vínculos de nomes, preço de venda e custo manual por cliente × produto.
+// Lê preço, custo, descontos e prazos do banco do app "Formação de Preço de Venda" (somente leitura).
+// No banco do Planner guarda só: vínculos de nomes e um custo manual (R$/cx) único, válido para todos.
 const FORMACAO_URL = 'https://nmxmgogbkgogsjuxgene.supabase.co';
 const FORMACAO_KEY = 'sb_publishable_2UUIo-7evGEzFzgGVudlJg_GcClcHu3';
 const dbF = createClient(FORMACAO_URL, FORMACAO_KEY);
 
 let cvFormacao = { clientes: [], produtos: [] };
 let cvClientesTodos = [], cvProdutosTodos = [];
-let cvVinCli = {}, cvVinProd = {}, cvItens = {};
+let cvVinCli = {}, cvVinProd = {}, cvManualGlobal = 0, cvPrecos = {};
 
 const brl = v => (Number(v) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const pct1 = v => (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const nOuZero = v => { const n = parseFloat(String(v).replace(',', '.')); return isNaN(n) ? 0 : n; };
+const cvNorm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+const cvToks = s => cvNorm(s).split(' ').filter(Boolean);
+const cvDia = d => d ? new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '';
 
 async function cvCarregarBase() {
   const res = await Promise.all([
@@ -1211,19 +1215,48 @@ async function cvCarregarBase() {
     db.from('produtos').select('*').order('ordem'),
     db.from('custo_venda_vinculo_cliente').select('*'),
     db.from('custo_venda_vinculo_produto').select('*'),
-    db.from('custo_venda_itens').select('*'),
+    db.from('custo_venda_config').select('*'),
     dbF.from('clientes').select('*').order('nome'),
-    dbF.from('produtos').select('*').order('nome')
+    dbF.from('produtos').select('*').order('nome'),
+    dbF.from('vendas_cliente_produto').select('cliente_id,produto_id,preco_venda,updated_at')
   ]);
   const falha = res.find(r => r.error);
   if (falha) throw new Error(falha.error.message);
-  const [rc, rp, vc, vp, it, fc, fp] = res.map(r => r.data || []);
+  const [rc, rp, vc, vp, cm, fc, fp, pr] = res.map(r => r.data || []);
   cvClientesTodos = rc;
   cvProdutosTodos = rp;
   cvFormacao = { clientes: fc, produtos: fp };
   cvVinCli = {}; vc.forEach(r => cvVinCli[r.cliente_id] = r.formacao_cliente_id);
   cvVinProd = {}; vp.forEach(r => cvVinProd[r.produto_id] = r.formacao_produto_id);
-  cvItens = {}; it.forEach(r => cvItens[r.cliente_id + '|' + r.produto_id] = { preco: Number(r.preco_venda) || 0, manual: Number(r.custo_manual) || 0 });
+  cvManualGlobal = Number(cm[0] && cm[0].custo_manual) || 0;
+  cvPrecos = {}; pr.forEach(r => cvPrecos[r.cliente_id + '|' + r.produto_id] = { preco: Number(r.preco_venda) || 0, data: r.updated_at });
+}
+
+// Cliente do Planner → cliente da Formação: vínculo salvo; senão, só se o nome for idêntico
+function cvClienteFormacao(cid) {
+  if (cvVinCli[cid]) return cvFormacao.clientes.find(c => c.id === cvVinCli[cid]) || null;
+  const cli = cvClientesTodos.find(c => c.id === cid);
+  if (!cli) return null;
+  const n = cvNorm(cli.nome);
+  const iguais = cvFormacao.clientes.filter(c => cvNorm(c.nome) === n);
+  return iguais.length === 1 ? iguais[0] : null;
+}
+
+// Produto do Planner → produto da Formação: vínculo salvo; senão, casa pelo nome (só se achar um único)
+function cvProdutoFormacao(g) {
+  if (cvVinProd[g.id]) return cvFormacao.produtos.find(p => p.id === cvVinProd[g.id]) || null;
+  const tenta = t => {
+    const cands = cvFormacao.produtos.map(p => ({ p, pt: cvToks(p.nome) })).filter(x => t.every(w => x.pt.includes(w)));
+    if (!cands.length) return null;
+    const exato = cands.filter(x => x.pt.length === t.length);
+    if (exato.length === 1) return exato[0].p;
+    if (cands.length === 1) return cands[0].p;
+    return null;
+  };
+  const t = cvToks(g.nome);
+  let r = tenta(t);
+  if (!r && cvNorm(g.categoria) === 'morango' && !t.includes('morango')) r = tenta(['morango', ...t]);
+  return r;
 }
 
 // "X Insumo" é somado dentro de "X" (igual ao Balanço e aos Relatórios)
@@ -1255,156 +1288,31 @@ function cvCalc(vol, preco, manual, fcli, fprod) {
 // ---------- ABA: CUSTO DE VENDA ----------
 async function carregarCustoVenda() {
   const el = document.getElementById('cv-conteudo');
-  el.innerHTML = '<div class="loading"><div class="spinner"></div>Carregando dados do Planner e da Formação...</div>';
-  try { await cvCarregarBase(); cvRenderTela(); }
+  el.innerHTML = '<div class="loading"><div class="spinner"></div>Carregando...</div>';
+  try { await cvCarregarBase(); cvRenderCusto(); }
   catch (e) { el.innerHTML = `<div class="loading">❌ Erro ao carregar: ${esc(e.message)}</div>`; }
 }
 
-function cvListaClientes() {
-  const inativos = document.getElementById('cv-inativos')?.checked;
-  return cvClientesTodos.filter(c => inativos || c.ativo);
-}
-
-function cvRenderTela() {
-  const el = document.getElementById('cv-conteudo');
-  const atual = document.getElementById('cv-cliente')?.value || '';
-  const inativos = document.getElementById('cv-inativos')?.checked || false;
-  const lista = cvClientesTodos.filter(c => inativos || c.ativo || c.id === atual);
-  el.innerHTML = `
-    <div class="tabela-container" style="padding:14px 16px">
-      <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
-        <div><label class="cv-lbl">Cliente (Planner)</label>
-          <select id="cv-cliente" class="cv-sel" style="min-width:220px" onchange="cvRenderCliente()">
-            <option value="">Selecione o cliente...</option>
-            ${lista.map(c => `<option value="${c.id}" ${c.id === atual ? 'selected' : ''}>${esc(c.nome)}${c.ativo ? '' : ' (inativo)'}</option>`).join('')}
-          </select></div>
-        <label style="font-size:13px;color:var(--cinza-escuro);display:flex;gap:6px;align-items:center;padding-bottom:8px">
-          <input type="checkbox" id="cv-inativos" ${inativos ? 'checked' : ''} onchange="cvRenderTela()"> Mostrar inativos</label>
-      </div>
-    </div>
-    <div id="cv-corpo"></div>`;
-  cvRenderCliente();
-}
-
-function cvRenderCliente() {
-  const corpo = document.getElementById('cv-corpo');
-  const cliId = document.getElementById('cv-cliente').value;
-  if (!cliId) { corpo.innerHTML = '<div class="loading">Escolha um cliente para ver e editar o custo de venda.</div>'; return; }
-  const vinc = cvVinCli[cliId] || '';
-  const fcli = cvFormacao.clientes.find(c => c.id === vinc);
-
-  let info = '<div class="loading" style="padding:18px">Vincule este cliente ao cadastro dele na Formação de Preço para trazer descontos, comissão e prazo.</div>';
-  if (fcli) {
-    const comTxt = fcli.comissao_tipo === 'percentual' ? pct1(fcli.comissao_valor) : `${esc(fcli.comissao_tipo)} ${esc(fcli.comissao_valor)} (tipo não suportado no cálculo)`;
-    info = `<div class="cards-resumo" style="margin:0;padding:14px">
-      <div class="card-resumo laranja"><div class="valor">${pct1(fcli.desconto_financeiro_pct)}</div><div class="label">Desconto comercial</div></div>
-      <div class="card-resumo"><div class="valor" style="font-size:20px">${comTxt}</div><div class="label">Comissão</div></div>
-      <div class="card-resumo azul"><div class="valor">${fcli.prazo_pagamento_dias} d</div><div class="label">Prazo de recebimento</div></div>
-      <div class="card-resumo"><div class="valor">${pct1(fcli.taxa_mensal_pct)}</div><div class="label">Taxa mensal</div></div>
-      <div class="card-resumo"><div class="valor">${pct1(fcli.margem_minima_pct)}</div><div class="label">Margem mínima</div></div>
-      <div class="card-resumo"><div class="valor" style="font-size:20px">${fcli.tem_frete ? brl(fcli.valor_frete) : '—'}</div><div class="label">Frete (não entra no cálculo)</div></div>
-    </div>`;
-  }
-
-  const inativos = document.getElementById('cv-inativos').checked;
-  const { grupos } = cvMapaGrupos();
-  const linhas = grupos.filter(g => inativos || g.ativo).map(g => {
-    const it = cvItens[cliId + '|' + g.id] || { preco: 0, manual: 0 };
-    const vp = cvVinProd[g.id] || '';
-    const opts = '<option value="">— selecione —</option>' + cvFormacao.produtos.map(p => `<option value="${p.id}" ${p.id === vp ? 'selected' : ''}>${esc(p.nome)}</option>`).join('');
-    return `<tr data-g="${g.id}">
-      <td>${esc(g.nome)}${g.ativo ? '' : ' <small>(inativo)</small>'}</td>
-      <td><select class="cv-sel" onchange="cvEditarVinculoProduto('${g.id}', this.value)">${opts}</select></td>
-      <td id="cv-custo-${g.id}"></td>
-      <td><input class="cv-in" type="number" step="0.01" min="0" inputmode="decimal" value="${it.preco || ''}" oninput="cvEditarItem('${g.id}','preco',this.value)"></td>
-      <td><input class="cv-in" type="number" step="0.01" min="0" inputmode="decimal" value="${it.manual || ''}" oninput="cvEditarItem('${g.id}','manual',this.value)"></td>
-      <td id="cv-lucro-${g.id}"></td>
-      <td id="cv-margem-${g.id}"></td>
-    </tr>`;
-  }).join('');
-
-  corpo.innerHTML = `
+function cvRenderCusto() {
+  document.getElementById('cv-conteudo').innerHTML = `
     <div class="tabela-container">
-      <div class="tabela-titulo" style="background:var(--azul)">🔗 Cliente na Formação de Preço</div>
-      <div style="padding:12px 16px;border-bottom:1px solid var(--borda)">
-        <select id="cv-fcli" class="cv-sel" style="min-width:260px" onchange="cvEditarVinculoCliente(this.value)">
-          <option value="">— selecione o cliente na Formação —</option>
-          ${cvFormacao.clientes.map(c => `<option value="${c.id}" ${c.id === vinc ? 'selected' : ''}>${esc(c.nome)}${c.ativo === false ? ' (inativo)' : ''}</option>`).join('')}
-        </select>
-      </div>
-      ${info}
-    </div>
-    <div class="tabela-container">
-      <div class="tabela-titulo">💲 Preço e custo por produto${''}</div>
-      <div class="tabela-scroll"><table style="min-width:820px"><thead><tr>
-        <th>Produto (Planner)</th><th>Produto na Formação</th><th>Custo (Formação)</th><th>Preço de venda</th><th>Custo manual R$/cx</th><th>Lucro/cx</th><th>Margem</th>
-      </tr></thead><tbody>${linhas}</tbody></table></div>
-      <div style="padding:10px 16px;font-size:12px;color:var(--cinza-escuro)">
-        O vínculo de produto vale para todos os clientes. Lucro/cx e margem já descontam desconto comercial, comissão, custo do produto, custo manual e custo financeiro.
+      <div class="tabela-titulo">✍️ Custo manual</div>
+      <div style="padding:14px 16px">
+        <label class="cv-lbl">R$ por caixa/unidade — vale para todos os clientes e produtos</label>
+        <input id="cv-manual" class="cv-in" style="width:130px;font-size:15px" type="number" step="0.01" min="0" inputmode="decimal" value="${cvManualGlobal || ''}" oninput="cvManualGlobal = nOuZero(this.value)">
+        <div style="font-size:12px;color:var(--cinza-escuro);margin-top:8px">Entra na aba Rentabilidade, somado ao custo do produto que vem da Formação de Preço. O frete é tratado à parte, na própria Rentabilidade.</div>
       </div>
     </div>
-    <button class="btn-salvar" id="cv-btn-salvar" onclick="cvSalvar()">💾 Salvar custo de venda</button>`;
-  grupos.filter(g => inativos || g.ativo).forEach(g => cvAtualizarLinha(g.id));
-}
-
-function cvEditarVinculoCliente(v) {
-  const cliId = document.getElementById('cv-cliente').value;
-  if (v) cvVinCli[cliId] = v; else delete cvVinCli[cliId];
-  cvRenderCliente();
-}
-function cvEditarVinculoProduto(gid, v) {
-  if (v) cvVinProd[gid] = v; else delete cvVinProd[gid];
-  cvAtualizarLinha(gid);
-}
-function cvEditarItem(gid, campo, v) {
-  const cliId = document.getElementById('cv-cliente').value;
-  const k = cliId + '|' + gid;
-  const it = cvItens[k] || (cvItens[k] = { preco: 0, manual: 0 });
-  it[campo] = nOuZero(v);
-  cvAtualizarLinha(gid);
-}
-function cvAtualizarLinha(gid) {
-  const cliId = document.getElementById('cv-cliente').value;
-  const fcli = cvFormacao.clientes.find(c => c.id === cvVinCli[cliId]);
-  const fprod = cvFormacao.produtos.find(p => p.id === cvVinProd[gid]);
-  const it = cvItens[cliId + '|' + gid] || { preco: 0, manual: 0 };
-  const cCusto = document.getElementById('cv-custo-' + gid);
-  const cLucro = document.getElementById('cv-lucro-' + gid);
-  const cMargem = document.getElementById('cv-margem-' + gid);
-  if (!cCusto) return;
-  cCusto.textContent = fprod ? brl(fprod.custo_unitario) : '—';
-  if (fprod && !(Number(fprod.custo_unitario) > 0)) cCusto.innerHTML = '<span style="color:var(--vermelho)">R$ 0,00 ⚠️</span>';
-  if (!fcli || !fprod || !(it.preco > 0)) { cLucro.textContent = '—'; cMargem.textContent = '—'; return; }
-  const c = cvCalc(1, it.preco, it.manual, fcli, fprod);
-  const abaixo = c.margem < (Number(fcli.margem_minima_pct) || 0);
-  cLucro.textContent = brl(c.lucro);
-  cMargem.innerHTML = `<b style="color:${abaixo ? 'var(--vermelho)' : 'var(--verde)'}">${pct1(c.margem)}</b>`;
+    <button class="btn-salvar" id="cv-btn-salvar" onclick="cvSalvar()">💾 Salvar</button>`;
 }
 
 async function cvSalvar() {
-  const cliId = document.getElementById('cv-cliente').value;
-  if (!cliId) return;
   const btn = document.getElementById('cv-btn-salvar');
   btn.disabled = true;
-  const ok = async q => { const r = await q; if (r.error) throw new Error(r.error.message); };
   try {
-    const agora = new Date().toISOString();
-    if (cvVinCli[cliId]) await ok(db.from('custo_venda_vinculo_cliente').upsert({ cliente_id: cliId, formacao_cliente_id: cvVinCli[cliId], atualizado_em: agora }, { onConflict: 'cliente_id' }));
-    else await ok(db.from('custo_venda_vinculo_cliente').delete().eq('cliente_id', cliId));
-
-    const { grupos } = cvMapaGrupos();
-    const vpUp = [], vpDel = [], itUp = [], itDel = [];
-    grupos.forEach(g => {
-      if (cvVinProd[g.id]) vpUp.push({ produto_id: g.id, formacao_produto_id: cvVinProd[g.id], atualizado_em: agora }); else vpDel.push(g.id);
-      const it = cvItens[cliId + '|' + g.id];
-      if (it && (it.preco > 0 || it.manual > 0)) itUp.push({ cliente_id: cliId, produto_id: g.id, preco_venda: it.preco, custo_manual: it.manual, atualizado_em: agora });
-      else itDel.push(g.id);
-    });
-    if (vpUp.length) await ok(db.from('custo_venda_vinculo_produto').upsert(vpUp, { onConflict: 'produto_id' }));
-    if (vpDel.length) await ok(db.from('custo_venda_vinculo_produto').delete().in('produto_id', vpDel));
-    if (itUp.length) await ok(db.from('custo_venda_itens').upsert(itUp, { onConflict: 'cliente_id,produto_id' }));
-    if (itDel.length) await ok(db.from('custo_venda_itens').delete().eq('cliente_id', cliId).in('produto_id', itDel));
-    mostrarToast('✅ Custo de venda salvo!');
+    const r = await db.from('custo_venda_config').upsert({ id: 1, custo_manual: cvManualGlobal, atualizado_em: new Date().toISOString() }, { onConflict: 'id' });
+    if (r.error) throw new Error(r.error.message);
+    mostrarToast('✅ Salvo!');
   } catch (e) {
     mostrarToast('❌ Erro ao salvar: ' + e.message, true);
   }
@@ -1428,6 +1336,22 @@ async function iniciarRentabilidade() {
   } catch (e) { /* o erro aparece ao gerar */ }
 }
 
+async function rtVincularProduto(gid, fpid) {
+  if (!fpid) return;
+  const r = await db.from('custo_venda_vinculo_produto').upsert({ produto_id: gid, formacao_produto_id: fpid, atualizado_em: new Date().toISOString() }, { onConflict: 'produto_id' });
+  if (r.error) { mostrarToast('❌ Erro ao vincular: ' + r.error.message, true); return; }
+  mostrarToast('✅ Produto vinculado!');
+  carregarRentabilidade();
+}
+
+async function rtVincularCliente(cid, fcid) {
+  if (!fcid) return;
+  const r = await db.from('custo_venda_vinculo_cliente').upsert({ cliente_id: cid, formacao_cliente_id: fcid, atualizado_em: new Date().toISOString() }, { onConflict: 'cliente_id' });
+  if (r.error) { mostrarToast('❌ Erro ao vincular: ' + r.error.message, true); return; }
+  mostrarToast('✅ Cliente vinculado!');
+  carregarRentabilidade();
+}
+
 function rtTabela(titulo, cab, linhas, cor) {
   return `<div class="tabela-container"><div class="tabela-titulo" ${cor ? `style="background:${cor}"` : ''}>${titulo}</div>
     <div class="tabela-scroll"><table style="min-width:${cab.length * 95}px"><thead><tr>${cab.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${linhas}</tbody></table></div></div>`;
@@ -1438,6 +1362,7 @@ async function carregarRentabilidade() {
   const ini = document.getElementById('rt-ini').value;
   const fim = document.getElementById('rt-fim').value;
   const cliSel = document.getElementById('rt-cliente').value;
+  const comFrete = document.getElementById('rt-frete').checked;
   const el = document.getElementById('rt-conteudo');
   if (!ini || !fim) { el.innerHTML = '<div class="loading">Selecione a data início e a data fim.</div>'; return; }
   if (ini > fim) { el.innerHTML = '<div class="loading">A data início não pode ser depois da data fim.</div>'; return; }
@@ -1446,66 +1371,113 @@ async function carregarRentabilidade() {
     await cvCarregarBase();
     const rows = await buscarSaidasPeriodo(ini, fim, cliSel || null);
     const { mapa, grupos } = cvMapaGrupos();
-    const vol = {};
-    rows.forEach(r => { const g = mapa[r.produto_id]; if (!g) return; const k = r.cliente_id + '|' + g; vol[k] = (vol[k] || 0) + (r.quantidade || 0); });
+    const vol = {}, diasCli = {}, caixasCli = {};
+    rows.forEach(r => {
+      const q = r.quantidade || 0;
+      if (q > 0) {
+        (diasCli[r.cliente_id] = diasCli[r.cliente_id] || new Set()).add(r.data);
+        caixasCli[r.cliente_id] = (caixasCli[r.cliente_id] || 0) + q;
+      }
+      const g = mapa[r.produto_id]; if (!g) return;
+      const k = r.cliente_id + '|' + g; vol[k] = (vol[k] || 0) + q;
+    });
 
-    const ok = [], pend = [];
+    const ok = [], pend = [], cliComPend = new Set();
     let volTotal = 0, volOk = 0;
     Object.entries(vol).forEach(([k, v]) => {
       if (v <= 0) return;
       const [cid, gid] = k.split('|');
       const cli = cvClientesTodos.find(c => c.id === cid);
       const prod = grupos.find(g => g.id === gid);
-      const fcli = cvFormacao.clientes.find(c => c.id === cvVinCli[cid]);
-      const fprod = cvFormacao.produtos.find(p => p.id === cvVinProd[gid]);
-      const it = cvItens[k] || { preco: 0, manual: 0 };
+      const fcli = cvClienteFormacao(cid);
+      const fprod = prod ? cvProdutoFormacao(prod) : null;
+      const pr = fcli && fprod ? cvPrecos[fcli.id + '|' + fprod.id] : null;
       const motivos = [];
       if (!fcli) motivos.push('cliente sem vínculo com a Formação');
-      if (!fprod) motivos.push('produto sem vínculo com a Formação');
-      if (!(it.preco > 0)) motivos.push('sem preço de venda');
+      if (!fprod) motivos.push('produto sem correspondente na Formação');
+      if (fcli && fprod && !(pr && pr.preco > 0)) motivos.push('sem preço na Formação para este cliente e produto');
       if (fprod && !(Number(fprod.custo_unitario) > 0)) motivos.push('custo zerado na Formação');
       if (fcli && fcli.comissao_tipo !== 'percentual' && Number(fcli.comissao_valor) > 0) motivos.push('comissão não percentual');
       volTotal += v;
-      const base = { cid, gid, cli: cli?.nome || '?', prod: prod?.nome || '?', vol: v };
-      if (motivos.length) { pend.push({ ...base, motivos }); return; }
+      const base = { cid, gid, cli: cli ? cli.nome : '?', prod: prod ? prod.nome : '?', vol: v, semCliente: !fcli, semProduto: !fprod };
+      if (motivos.length) { pend.push({ ...base, motivos }); cliComPend.add(cid); return; }
       volOk += v;
-      ok.push({ ...base, preco: it.preco, min: Number(fcli.margem_minima_pct) || 0, ...cvCalc(v, it.preco, it.manual, fcli, fprod) });
+      ok.push({ ...base, preco: pr.preco, dataPreco: pr.data, min: Number(fcli.margem_minima_pct) || 0, ...cvCalc(v, pr.preco, cvManualGlobal, fcli, fprod) });
+    });
+
+    // Frete por cliente: valor por entrega da Formação × dias com saída no período (1 entrega por dia)
+    const fatCli = {};
+    ok.forEach(x => { fatCli[x.cid] = (fatCli[x.cid] || 0) + x.fat; });
+    const fretes = Object.keys(diasCli).map(cid => {
+      const fcli = cvClienteFormacao(cid);
+      const cli = cvClientesTodos.find(c => c.id === cid);
+      const porEntrega = fcli && fcli.tem_frete ? Number(fcli.valor_frete) || 0 : 0;
+      const entregas = diasCli[cid].size;
+      return { cid, nome: cli ? cli.nome : '?', semVinculo: !fcli, porEntrega, entregas, total: porEntrega * entregas, caixas: caixasCli[cid] || 0, fat: fatCli[cid] || 0, parcial: cliComPend.has(cid) };
+    });
+    const freteDe = {}; fretes.forEach(f => freteDe[f.cid] = f);
+    ok.forEach(x => {
+      const f = freteDe[x.cid];
+      x.fre = comFrete && f && fatCli[x.cid] > 0 ? f.total * x.fat / fatCli[x.cid] : 0;
+      x.lucro -= x.fre;
+      x.margem = x.fat > 0 ? x.lucro / x.fat * 100 : 0;
     });
 
     const soma = (arr, f) => arr.reduce((s, x) => s + f(x), 0);
-    const T = { fat: soma(ok, x => x.fat), lucro: soma(ok, x => x.lucro), desc: soma(ok, x => x.desc + x.com) };
+    const T = { fat: soma(ok, x => x.fat), lucro: soma(ok, x => x.lucro), desc: soma(ok, x => x.desc + x.com), fre: soma(ok, x => x.fre) };
     const margemT = T.fat > 0 ? T.lucro / T.fat * 100 : 0;
     const cobertura = volTotal > 0 ? volOk / volTotal * 100 : 0;
+    const velhos = ok.filter(x => x.dataPreco && (Date.now() - new Date(x.dataPreco)) / 864e5 > 30);
 
     let html = `<div class="cards-resumo">
       <div class="card-resumo azul"><div class="valor" style="font-size:20px">${brl(T.fat)}</div><div class="label">Faturamento bruto</div></div>
       <div class="card-resumo laranja"><div class="valor" style="font-size:20px">${brl(T.desc)}</div><div class="label">Desconto + comissão</div></div>
-      <div class="card-resumo"><div class="valor" style="font-size:20px">${brl(T.lucro)}</div><div class="label">Lucro</div></div>
+      ${comFrete ? `<div class="card-resumo laranja"><div class="valor" style="font-size:20px">${brl(T.fre)}</div><div class="label">Frete</div></div>` : ''}
+      <div class="card-resumo"><div class="valor" style="font-size:20px">${brl(T.lucro)}</div><div class="label">Lucro ${comFrete ? 'com frete' : 'sem frete'}</div></div>
       <div class="card-resumo"><div class="valor">${pct1(margemT)}</div><div class="label">Margem</div></div>
       <div class="card-resumo ${cobertura < 100 ? 'laranja' : ''}"><div class="valor">${pct1(cobertura)}</div><div class="label">Volume valorizado (${volOk} de ${volTotal} cx)</div></div>
     </div>`;
+    if (velhos.length) html += `<div class="tabela-container" style="padding:10px 16px;border-left:4px solid var(--laranja);font-size:13px">⚠️ ${velhos.length} linha(s) usam preço da Formação com mais de 30 dias (data no detalhe). Atualize os preços lá para o relatório refletir o praticado.</div>`;
 
     if (!ok.length) {
-      html += '<div class="loading">Nenhum volume do período tem custo de venda completo. Veja as pendências abaixo e preencha a aba Custo de Venda.</div>';
+      html += '<div class="loading">Nenhum volume do período tem dados completos. Veja as pendências abaixo.</div>';
     } else {
-      const agrup = (chave) => { const m = {}; ok.forEach(x => { const a = m[x[chave]] || (m[x[chave]] = { nome: chave === 'cid' ? x.cli : x.prod, vol: 0, fat: 0, desc: 0, custo: 0, fin: 0, lucro: 0, min: x.min }); a.vol += x.vol; a.fat += x.fat; a.desc += x.desc + x.com; a.custo += x.custo + x.man; a.fin += x.fin; a.lucro += x.lucro; }); return Object.values(m).sort((a, b) => b.lucro - a.lucro); };
-      const linhaAgr = a => { const m = a.fat > 0 ? a.lucro / a.fat * 100 : 0; return `<tr><td>${esc(a.nome)}</td><td>${a.vol}</td><td>${brl(a.fat)}</td><td>${brl(a.desc)}</td><td>${brl(a.custo)}</td><td>${brl(a.fin)}</td><td>${brl(a.lucro)}</td><td>${rtCorMargem(m, a.min)}</td></tr>`; };
-      const totalRow = (lbl) => `<tr class="total-row"><td>${lbl}</td><td>${soma(ok, x => x.vol)}</td><td>${brl(T.fat)}</td><td>${brl(T.desc)}</td><td>${brl(soma(ok, x => x.custo + x.man))}</td><td>${brl(soma(ok, x => x.fin))}</td><td>${brl(T.lucro)}</td><td>${pct1(margemT)}</td></tr>`;
-      const cab = ['Caixas', 'Faturamento', 'Desc. + comissão', 'Custo (prod. + manual)', 'Custo financeiro', 'Lucro', 'Margem'];
+      const agrup = (chave) => { const m = {}; ok.forEach(x => { const a = m[x[chave]] || (m[x[chave]] = { nome: chave === 'cid' ? x.cli : x.prod, vol: 0, fat: 0, desc: 0, custo: 0, fre: 0, fin: 0, lucro: 0, min: x.min }); a.vol += x.vol; a.fat += x.fat; a.desc += x.desc + x.com; a.custo += x.custo + x.man; a.fre += x.fre; a.fin += x.fin; a.lucro += x.lucro; }); return Object.values(m).sort((a, b) => b.lucro - a.lucro); };
+      const cel = (a, m) => `<td>${a.vol}</td><td>${brl(a.fat)}</td><td>${brl(a.desc)}</td><td>${brl(a.custo)}</td>${comFrete ? `<td>${brl(a.fre)}</td>` : ''}<td>${brl(a.fin)}</td><td>${brl(a.lucro)}</td><td>${m}</td>`;
+      const linhaAgr = a => { const m = a.fat > 0 ? a.lucro / a.fat * 100 : 0; return `<tr><td>${esc(a.nome)}</td>${cel(a, rtCorMargem(m, a.min))}</tr>`; };
+      const totalRow = (lbl) => `<tr class="total-row"><td>${lbl}</td>${cel({ vol: soma(ok, x => x.vol), fat: T.fat, desc: T.desc, custo: soma(ok, x => x.custo + x.man), fre: T.fre, fin: soma(ok, x => x.fin), lucro: T.lucro }, pct1(margemT))}</tr>`;
+      const cab = ['Caixas', 'Faturamento', 'Desc. + comissão', 'Custo (prod. + manual)', ...(comFrete ? ['Frete'] : []), 'Custo financeiro', 'Lucro', 'Margem'];
 
       if (!cliSel) html += rtTabela('🏪 Rentabilidade por cliente <small style="font-weight:400">(vermelho = abaixo da margem mínima)</small>', ['Cliente', ...cab], agrup('cid').map(linhaAgr).join('') + totalRow('TOTAL'), 'var(--azul)');
       html += rtTabela('📦 Rentabilidade por produto', ['Produto', ...cab], agrup('gid').map(linhaAgr).join('') + totalRow('TOTAL'));
-      const det = ok.slice().sort((a, b) => a.cli.localeCompare(b.cli) || b.lucro - a.lucro).map(x => `<tr><td>${esc(x.cli)}</td><td>${esc(x.prod)}</td><td>${x.vol}</td><td>${brl(x.preco)}</td><td>${brl(x.fat)}</td><td>${brl(x.desc + x.com)}</td><td>${brl(x.custo)}</td><td>${brl(x.man)}</td><td>${brl(x.fin)}</td><td>${brl(x.lucro)}</td><td>${rtCorMargem(x.margem, x.min)}</td></tr>`).join('');
-      html += `<details style="margin-bottom:16px"><summary style="cursor:pointer;font-weight:700;padding:8px 2px">🔎 Detalhe cliente × produto</summary>${rtTabela('Detalhe', ['Cliente', 'Produto', 'Caixas', 'Preço', 'Faturamento', 'Desc. + com.', 'Custo prod.', 'Custo manual', 'Custo fin.', 'Lucro', 'Margem'], det)}</details>`;
+    }
+
+    // Relatório de fretes por cliente (sempre aparece; só entra no lucro se a opção estiver marcada)
+    const fr = fretes.filter(f => f.total > 0 || f.semVinculo).sort((a, b) => b.total - a.total);
+    if (fr.length) {
+      const linhasFr = fr.map(f => `<tr><td>${esc(f.nome)}</td>` + (f.semVinculo
+        ? `<td colspan="6" style="color:var(--cinza-escuro)">cliente sem vínculo com a Formação</td>`
+        : `<td>${brl(f.porEntrega)}</td><td>${f.entregas}</td><td>${brl(f.total)}</td><td>${f.caixas}</td><td>${f.caixas ? brl(f.total / f.caixas) : '—'}</td><td>${f.fat > 0 && !f.parcial ? pct1(f.total / f.fat * 100) : '—'}</td>`) + '</tr>').join('');
+      const totFr = soma(fr, f => f.total);
+      html += rtTabela(`🚚 Fretes por cliente <small style="font-weight:400">(${comFrete ? 'incluído no lucro' : 'fora do cálculo do lucro'})</small>`, ['Cliente', 'Frete por entrega', 'Entregas', 'Frete total', 'Caixas', 'Frete por caixa', 'Frete % do fat.'], linhasFr + `<tr class="total-row"><td>TOTAL</td><td></td><td></td><td>${brl(totFr)}</td><td></td><td></td><td></td></tr>`, 'var(--laranja)');
+    }
+
+    if (ok.length) {
+      const det = ok.slice().sort((a, b) => a.cli.localeCompare(b.cli) || b.lucro - a.lucro).map(x => `<tr><td>${esc(x.cli)}</td><td>${esc(x.prod)}</td><td>${x.vol}</td><td>${brl(x.preco)} <small>${cvDia(x.dataPreco)}</small></td><td>${brl(x.fat)}</td><td>${brl(x.desc + x.com)}</td><td>${brl(x.custo)}</td><td>${brl(x.man)}</td>${comFrete ? `<td>${brl(x.fre)}</td>` : ''}<td>${brl(x.fin)}</td><td>${brl(x.lucro)}</td><td>${rtCorMargem(x.margem, x.min)}</td></tr>`).join('');
+      html += `<details style="margin-bottom:16px"><summary style="cursor:pointer;font-weight:700;padding:8px 2px">🔎 Detalhe cliente × produto</summary>${rtTabela('Detalhe', ['Cliente', 'Produto', 'Caixas', 'Preço (data)', 'Faturamento', 'Desc. + com.', 'Custo prod.', 'Custo manual', ...(comFrete ? ['Frete'] : []), 'Custo fin.', 'Lucro', 'Margem'], det)}</details>`;
     }
 
     if (pend.length) {
-      const p = pend.sort((a, b) => b.vol - a.vol).map(x => `<tr><td>${esc(x.cli)}</td><td>${esc(x.prod)}</td><td>${x.vol}</td><td style="white-space:normal;text-align:left">${x.motivos.join('; ')}</td></tr>`).join('');
-      html += rtTabela(`⚠️ Pendências — ${volTotal - volOk} caixas fora do cálculo`, ['Cliente', 'Produto', 'Caixas', 'Motivo'], p, 'var(--laranja)');
+      const optsP = '<option value="">produto: escolher...</option>' + cvFormacao.produtos.map(p => `<option value="${p.id}">${esc(p.nome)}</option>`).join('');
+      const optsC = '<option value="">cliente: escolher...</option>' + cvFormacao.clientes.map(c => `<option value="${c.id}">${esc(c.nome)}</option>`).join('');
+      const p = pend.sort((a, b) => b.vol - a.vol).map(x => `<tr><td>${esc(x.cli)}</td><td>${esc(x.prod)}</td><td>${x.vol}</td><td style="white-space:normal;text-align:left">${x.motivos.join('; ')}</td><td style="white-space:normal">${(x.semCliente ? `<select class="cv-sel" onchange="rtVincularCliente('${x.cid}', this.value)">${optsC}</select> ` : '') + (x.semProduto ? `<select class="cv-sel" onchange="rtVincularProduto('${x.gid}', this.value)">${optsP}</select>` : '') || '—'}</td></tr>`).join('');
+      html += rtTabela(`⚠️ Pendências — ${volTotal - volOk} caixas fora do cálculo`, ['Cliente', 'Produto', 'Caixas', 'Motivo', 'Vincular na Formação'], p, 'var(--laranja)');
     }
     html += `<div style="font-size:12px;color:var(--cinza-escuro);padding:0 4px 20px;line-height:1.5">
-      Volume = saídas do Planner no período (Insumo somado ao produto). Preço e custo manual: aba Custo de Venda. Custo do produto, desconto comercial, comissão, prazo e taxa: app Formação de Preço.
-      Custo financeiro = faturamento × taxa mensal × (prazo de recebimento do cliente − prazo de pagamento do produto) ÷ 30. Frete não entra (use o custo manual). Margem = lucro ÷ faturamento bruto.</div>`;
+      Volume = saídas do Planner no período (Insumo somado ao produto). Preço, custo do produto, desconto comercial, comissão, prazo e taxa vêm do app Formação de Preço. Custo manual: aba Custo de Venda.
+      Custo financeiro = faturamento × taxa mensal × (prazo de recebimento do cliente − prazo de pagamento do produto) ÷ 30. Margem = lucro ÷ faturamento bruto.
+      Frete = valor por entrega da Formação × dias com saída do cliente no período (1 entrega por dia); com a opção marcada, é rateado entre os produtos do cliente pelo faturamento.
+      Preço e custo são os atuais da Formação, aplicados a todo o período.</div>`;
     el.innerHTML = html;
   } catch (e) {
     el.innerHTML = `<div class="loading">❌ Erro ao gerar rentabilidade: ${esc(e.message)}</div>`;
