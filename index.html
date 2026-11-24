@@ -430,6 +430,10 @@
   <div class="tab" onclick="mudarAba('relatorios', this)">📊 Relatórios</div>
   <div class="tab" onclick="mudarAba('custovenda', this)">💲 Custos Compra x Venda</div>
   <div class="tab" onclick="mudarAba('rentab', this)">📈 Rentabilidade</div>
+  <div class="tab" onclick="mudarAba('flestoque', this)">🥦 Folhosas Estoque</div>
+  <div class="tab" onclick="mudarAba('flentradas', this)">🚚 Folhosas Entradas</div>
+  <div class="tab" onclick="mudarAba('flvendas', this)">🧾 Folhosas Vendas</div>
+  <div class="tab" onclick="mudarAba('flsaldo', this)">⚖️ Folhosas Saldo</div>
   <div class="tab" onclick="mudarAba('cadastros', this)">⚙️ Cadastros</div>
 </div>
 
@@ -510,6 +514,14 @@
     </div>
     <div id="rt-conteudo"><div class="loading">Selecione o período e clique em Gerar.</div></div>
   </div>
+
+  <div id="secao-flestoque" class="secao"><div id="fl-estoque"></div></div>
+
+  <div id="secao-flentradas" class="secao"><div id="fl-entradas"></div></div>
+
+  <div id="secao-flvendas" class="secao"><div id="fl-vendas"></div></div>
+
+  <div id="secao-flsaldo" class="secao"><div id="fl-saldo"></div></div>
 
   <div id="secao-cadastros" class="secao">
     <div id="cadastros-conteudo"><div class="loading"><div class="spinner"></div>Carregando cadastros...</div></div>
@@ -1639,6 +1651,314 @@ async function carregarRentabilidade() {
   }
 }
 
+// ===================== FOLHOSAS — controle diário (Brócolis · Couve-flor · Alface) =====================
+// Tabelas: fol_grupos (o que se vende), fol_itens (o que o colaborador conta: grupo + fornecedor),
+// fol_contagem (estoque contado por dia/item), fol_devolucao, fol_estimativa (venda por cliente/dia/grupo),
+// fol_entrada_prevista (entrada prevista por dia/item).
+const FL_PRODUTOS = ['Brócolis', 'Couve-flor', 'Alface'];
+const FL_SEM = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+const FL_DIAS_JANELA = 7;
+const fl = { pronto: false, aba: 'estoque', ref: null, grupos: [], itens: [], clientes: [], cliSel: null,
+  contagem: {}, devol: {}, entr: {}, estAll: [], base: null, baseContagem: {} };
+
+function flEsc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function flISO(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function flSomaDias(iso, n) { const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + n); return flISO(d); }
+function flJanela(ini) { return Array.from({ length: FL_DIAS_JANELA }, (_, i) => flSomaDias(ini, i)); }
+function flBR(iso) { const [y, m, d] = iso.split('-'); return `${d}/${m}/${y}`; }
+function flRotDia(iso) { const d = new Date(iso + 'T00:00:00'); return `${FL_SEM[d.getDay()]}<br><span style="font-weight:400;font-size:10px">${iso.slice(8)}/${iso.slice(5, 7)}</span>`; }
+function flN(v) { return Number(v) || 0; }
+function flFmt(n) { return Number(n).toLocaleString('pt-BR', { maximumFractionDigits: 2 }); }
+const flGrupo = id => fl.grupos.find(g => g.id === id);
+const flItensAtivos = () => fl.itens.filter(i => i.ativo && (flGrupo(i.grupo_id) || {}).ativo);
+const flGruposAtivos = () => fl.grupos.filter(g => g.ativo);
+const flBtnX = 'style="padding:8px 14px"';
+
+async function flCarregarBase() {
+  const [g, i, c] = await Promise.all([
+    db.from('fol_grupos').select('*').order('ordem'),
+    db.from('fol_itens').select('*').order('ordem'),
+    db.from('clientes').select('id,nome').eq('ativo', true).order('nome'),
+  ]);
+  for (const r of [g, i, c]) if (r.error) throw r.error;
+  fl.grupos = g.data || []; fl.itens = i.data || []; fl.clientes = c.data || [];
+  if (!fl.cliSel || !fl.clientes.some(x => x.id === fl.cliSel)) fl.cliSel = fl.clientes[0] ? fl.clientes[0].id : null;
+  fl.pronto = true;
+}
+
+async function flCarregarDados() {
+  const ini = fl.ref, fim = flSomaDias(fl.ref, FL_DIAS_JANELA - 1);
+  if (fl.aba === 'estoque') {
+    const [c, d] = await Promise.all([
+      db.from('fol_contagem').select('*').eq('data', fl.ref),
+      db.from('fol_devolucao').select('*').eq('data', fl.ref)]);
+    for (const r of [c, d]) if (r.error) throw r.error;
+    fl.contagem = {}; (c.data || []).forEach(r => { fl.contagem[r.item_id] = r; });
+    fl.devol = {}; (d.data || []).forEach(r => { fl.devol[r.produto] = r; });
+  } else if (fl.aba === 'entradas') {
+    const r = await db.from('fol_entrada_prevista').select('*').gte('data', ini).lte('data', fim);
+    if (r.error) throw r.error;
+    fl.entr = {}; (r.data || []).forEach(x => { fl.entr[x.item_id + '|' + x.data] = x; });
+  } else if (fl.aba === 'vendas') {
+    const r = await db.from('fol_estimativa').select('*').gte('data', ini).lte('data', fim);
+    if (r.error) throw r.error;
+    fl.estAll = r.data || [];
+  } else if (fl.aba === 'saldo') {
+    const u = await db.from('fol_contagem').select('data').lte('data', fl.ref).order('data', { ascending: false }).limit(1);
+    if (u.error) throw u.error;
+    fl.base = u.data && u.data[0] ? u.data[0].data : null;
+    fl.baseContagem = {}; fl.entr = {}; fl.estAll = [];
+    if (!fl.base) return;
+    const f2 = flSomaDias(fl.base, FL_DIAS_JANELA - 1);
+    const [c, e, v] = await Promise.all([
+      db.from('fol_contagem').select('*').eq('data', fl.base),
+      db.from('fol_entrada_prevista').select('*').gte('data', fl.base).lte('data', f2),
+      db.from('fol_estimativa').select('*').gte('data', fl.base).lte('data', f2)]);
+    for (const r of [c, e, v]) if (r.error) throw r.error;
+    (c.data || []).forEach(r => { fl.baseContagem[r.item_id] = r; });
+    (e.data || []).forEach(x => { fl.entr[x.item_id + '|' + x.data] = x; });
+    fl.estAll = v.data || [];
+  }
+}
+
+async function flAbrir(aba) {
+  fl.aba = aba;
+  const alvo = document.getElementById('fl-' + aba);
+  alvo.innerHTML = '<div class="loading"><div class="spinner"></div>Carregando...</div>';
+  try {
+    if (!fl.ref) fl.ref = flISO(new Date());
+    if (!fl.pronto || aba === 'estoque') await flCarregarBase();
+    await flCarregarDados();
+    flRender();
+  } catch (e) {
+    alvo.innerHTML = `<div class="loading">Erro ao carregar: ${flEsc(e.message || e)}</div>`;
+  }
+}
+
+function flMudarData(v) { if (!v) return; fl.ref = v; flAbrir(fl.aba); }
+function flHoje() { fl.ref = flISO(new Date()); flAbrir(fl.aba); }
+
+function flRender() {
+  const alvo = document.getElementById('fl-' + fl.aba);
+  const rot = { estoque: 'Data da contagem', entradas: 'Primeiro dia', vendas: 'Primeiro dia', saldo: 'Contagem mais recente até' }[fl.aba];
+  const barra = `<div class="tabela-container" style="padding:12px 16px"><div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+    <div><label class="cv-lbl">${rot}</label><input type="date" class="cv-sel" value="${fl.ref}" onchange="flMudarData(this.value)"></div>
+    <button class="btn-hoje" style="padding:9px 16px;font-size:13px" onclick="flHoje()">Hoje</button></div></div>`;
+  const corpo = { estoque: flHtmlEstoque, entradas: flHtmlEntradas, vendas: flHtmlVendas, saldo: flHtmlSaldo }[fl.aba]();
+  alvo.innerHTML = barra + corpo;
+  if (fl.aba === 'estoque') flResumoEstoque();
+  if (fl.aba === 'vendas') flTotalVendas();
+}
+
+function flInp(onchange, val, w) {
+  return `<input type="number" min="0" step="1" class="cv-in" style="width:${w || 80}px" value="${val == null ? '' : val}" onchange="${onchange}">`;
+}
+function flTabela(titulo, cab, linhas, cor, minw) {
+  return `<div class="tabela-container"><div class="tabela-titulo" ${cor ? `style="background:${cor}"` : ''}>${titulo}</div>
+    <div class="tabela-scroll"><table style="min-width:${minw || 520}px"><thead><tr>${cab}</tr></thead><tbody>${linhas}</tbody></table></div></div>`;
+}
+const flNota = t => `<div style="font-size:12px;color:var(--cinza-escuro);padding:0 4px 12px">${t}</div>`;
+
+// ---------- Aba Estoque: contagem do dia + devolução + itens ----------
+function flHtmlEstoque() {
+  const linhas = flItensAtivos().map(i => {
+    const r = fl.contagem[i.id], g = flGrupo(i.grupo_id);
+    const quem = r ? `${r.enviado_por ? flEsc(r.enviado_por) + ' · ' : ''}${new Date(r.enviado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : '';
+    return `<tr><td style="text-align:left;font-weight:600">${flEsc(i.rotulo)}</td><td style="text-align:left">${flEsc(g.nome)}</td><td>${flInp(`flSalvarContagem('${i.id}', this.value)`, r ? r.quantidade : '', 110)}</td><td style="font-size:11px;color:var(--cinza-escuro)">${quem}</td></tr>`;
+  }).join('');
+  const dev = FL_PRODUTOS.map(p => `<div><label class="cv-lbl">${p}</label>${flInp(`flSalvarDevol('${p}', this.value)`, fl.devol[p] ? fl.devol[p].quantidade : '', 110)}</div>`).join('');
+  return flTabela(`📦 Estoque contado em ${flBR(fl.ref)}`, '<th style="text-align:left">Item</th><th style="text-align:left">Grupo</th><th>Quantidade</th><th>Enviado</th>', linhas || '<tr><td colspan="4">Nenhum item ativo.</td></tr>', null, 460)
+    + `<div id="fl-resumo"></div>
+    <div class="tabela-container"><div class="tabela-titulo laranja">↩️ Devolução do dia</div><div style="display:flex;gap:16px;flex-wrap:wrap;padding:14px 16px">${dev}</div></div>
+    ${flHtmlItens()}
+    ${flNota('A contagem é o estoque do início do dia, antes das vendas. Os valores salvam ao sair do campo; campo vazio apaga o lançamento. A devolução é só registrada, por enquanto não entra no saldo projetado.')}`;
+}
+
+function flResumoEstoque() {
+  const tot = {};
+  flItensAtivos().forEach(i => { const r = fl.contagem[i.id]; if (r) tot[i.grupo_id] = (tot[i.grupo_id] || 0) + flN(r.quantidade); });
+  const linhas = flGruposAtivos().map(g => `<tr><td style="text-align:left;font-weight:600">${flEsc(g.nome)}</td><td><b>${tot[g.id] != null ? flFmt(tot[g.id]) : '—'}</b></td></tr>`).join('');
+  document.getElementById('fl-resumo').innerHTML = flTabela('Total por grupo (soma dos fornecedores)', '<th style="text-align:left">Grupo</th><th>Estoque</th>', linhas, 'var(--azul)', 320);
+}
+
+async function flSalvarContagem(itemId, v) {
+  try {
+    if (String(v).trim() === '') {
+      const { error } = await db.from('fol_contagem').delete().eq('data', fl.ref).eq('item_id', itemId);
+      if (error) throw error;
+      delete fl.contagem[itemId];
+    } else {
+      const { data, error } = await db.from('fol_contagem')
+        .upsert({ data: fl.ref, item_id: itemId, quantidade: flN(v), enviado_por: 'Planner', enviado_em: new Date().toISOString() }, { onConflict: 'data,item_id' }).select().single();
+      if (error) throw error;
+      fl.contagem[itemId] = data;
+    }
+    flResumoEstoque(); mostrarToast('Contagem salva');
+  } catch (e) { mostrarToast('Erro ao salvar: ' + (e.message || e), true); }
+}
+
+async function flSalvarDevol(produto, v) {
+  try {
+    if (String(v).trim() === '') {
+      const { error } = await db.from('fol_devolucao').delete().eq('data', fl.ref).eq('produto', produto);
+      if (error) throw error;
+      delete fl.devol[produto];
+    } else {
+      const { data, error } = await db.from('fol_devolucao')
+        .upsert({ data: fl.ref, produto, quantidade: flN(v), enviado_por: 'Planner', enviado_em: new Date().toISOString() }, { onConflict: 'data,produto' }).select().single();
+      if (error) throw error;
+      fl.devol[produto] = data;
+    }
+    mostrarToast('Devolução salva');
+  } catch (e) { mostrarToast('Erro ao salvar: ' + (e.message || e), true); }
+}
+
+function flHtmlItens() {
+  const linhas = fl.itens.map(i => {
+    const g = flGrupo(i.grupo_id);
+    return `<tr><td style="text-align:left">${flEsc(i.rotulo)}</td><td style="text-align:left">${flEsc(g ? g.nome : '—')}</td><td>${flEsc(i.fornecedor || '—')}</td>
+      <td><button class="btn-acao btn-toggle ${i.ativo ? 'ativo' : ''}" onclick="flToggleItem('${i.id}', ${!i.ativo})">${i.ativo ? 'Ativo' : 'Inativo'}</button></td></tr>`;
+  }).join('');
+  return `<details class="tabela-container" style="padding:0"><summary style="cursor:pointer;padding:12px 16px;font-weight:700">⚙️ Itens e grupos (cadastro)</summary>
+    <div style="padding:0 16px 14px">
+      <div class="tabela-scroll"><table style="min-width:420px"><thead><tr><th style="text-align:left">Item (como no WhatsApp)</th><th style="text-align:left">Grupo</th><th>Fornecedor</th><th></th></tr></thead><tbody>${linhas}</tbody></table></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-top:12px">
+        <div><label class="cv-lbl">Novo item</label><input id="fli-rot" class="cv-sel" placeholder="Ex.: Granel Sul"></div>
+        <div><label class="cv-lbl">Grupo</label><select id="fli-grupo" class="cv-sel">${flGruposAtivos().map(g => `<option value="${g.id}">${flEsc(g.nome)}</option>`).join('')}</select></div>
+        <div><label class="cv-lbl">Fornecedor</label><input id="fli-forn" class="cv-sel" placeholder="Sul, Mg... (opcional)" style="width:150px"></div>
+        <button class="btn-hoje" style="padding:9px 16px;font-size:13px" onclick="flAddItem()">Adicionar item</button>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-top:12px">
+        <div><label class="cv-lbl">Novo grupo (o que se vende)</label><input id="flg-nome" class="cv-sel" placeholder="Ex.: Alface Americana"></div>
+        <div><label class="cv-lbl">Produto</label><select id="flg-prod" class="cv-sel">${FL_PRODUTOS.map(p => `<option>${p}</option>`).join('')}</select></div>
+        <button class="btn-hoje" style="padding:9px 16px;font-size:13px" onclick="flAddGrupo()">Adicionar grupo</button>
+      </div></div></details>`;
+}
+
+async function flAddItem() {
+  const rot = document.getElementById('fli-rot').value.trim(), gid = document.getElementById('fli-grupo').value, forn = document.getElementById('fli-forn').value.trim();
+  if (!rot || !gid) { mostrarToast('Informe o nome do item e o grupo', true); return; }
+  const ordem = Math.max(0, ...fl.itens.map(i => i.ordem || 0)) + 1;
+  const { error } = await db.from('fol_itens').insert({ rotulo: rot, grupo_id: gid, fornecedor: forn || null, ordem });
+  if (error) { mostrarToast('Erro: ' + error.message, true); return; }
+  mostrarToast('Item adicionado'); flAbrir('estoque');
+}
+async function flAddGrupo() {
+  const nome = document.getElementById('flg-nome').value.trim(), prod = document.getElementById('flg-prod').value;
+  if (!nome) { mostrarToast('Informe o nome do grupo', true); return; }
+  const ordem = Math.max(0, ...fl.grupos.map(g => g.ordem || 0)) + 1;
+  const { error } = await db.from('fol_grupos').insert({ nome, produto: prod, ordem });
+  if (error) { mostrarToast('Erro: ' + error.message, true); return; }
+  mostrarToast('Grupo adicionado'); flAbrir('estoque');
+}
+async function flToggleItem(id, ativo) {
+  const { error } = await db.from('fol_itens').update({ ativo }).eq('id', id);
+  if (error) { mostrarToast('Erro: ' + error.message, true); return; }
+  flAbrir('estoque');
+}
+
+// ---------- Aba Entradas: previsão por item/dia ----------
+function flHtmlEntradas() {
+  const dias = flJanela(fl.ref);
+  const linhas = flItensAtivos().map(i => `<tr><td style="text-align:left;font-weight:600">${flEsc(i.rotulo)}</td>${dias.map(d => {
+    const r = fl.entr[i.id + '|' + d];
+    return `<td>${flInp(`flSalvarEntrada('${i.id}', '${d}', this.value)`, r ? r.quantidade : '', 78)}</td>`;
+  }).join('')}</tr>`).join('');
+  return flTabela('🚚 Entrada prevista por item (próximos 7 dias)', `<th style="text-align:left">Item</th>${dias.map(d => `<th>${flRotDia(d)}</th>`).join('')}`, linhas, 'var(--laranja)', 700)
+    + flNota('Informe o que deve chegar de cada fornecedor/item por dia. Campo vazio apaga a previsão.');
+}
+
+async function flSalvarEntrada(itemId, dia, v) {
+  try {
+    const k = itemId + '|' + dia;
+    if (String(v).trim() === '') {
+      const { error } = await db.from('fol_entrada_prevista').delete().eq('data', dia).eq('item_id', itemId);
+      if (error) throw error;
+      delete fl.entr[k];
+    } else {
+      const { data, error } = await db.from('fol_entrada_prevista').upsert({ data: dia, item_id: itemId, quantidade: flN(v) }, { onConflict: 'data,item_id' }).select().single();
+      if (error) throw error;
+      fl.entr[k] = data;
+    }
+    mostrarToast('Entrada salva');
+  } catch (e) { mostrarToast('Erro ao salvar: ' + (e.message || e), true); }
+}
+
+// ---------- Aba Vendas: estimativa por cliente × grupo × dia ----------
+function flHtmlVendas() {
+  const dias = flJanela(fl.ref);
+  const opts = fl.clientes.map(c => `<option value="${c.id}" ${c.id === fl.cliSel ? 'selected' : ''}>${flEsc(c.nome)}</option>`).join('');
+  const linhas = flGruposAtivos().map(g => `<tr><td style="text-align:left;font-weight:600">${flEsc(g.nome)}</td>${dias.map(d => {
+    const r = fl.estAll.find(x => x.cliente_id === fl.cliSel && x.grupo_id === g.id && x.data === d);
+    return `<td>${flInp(`flSalvarEst('${g.id}', '${d}', this.value)`, r ? r.quantidade : '', 78)}</td>`;
+  }).join('')}</tr>`).join('');
+  return `<div class="tabela-container" style="padding:12px 16px"><label class="cv-lbl">Cliente</label>
+      <select class="cv-sel" style="min-width:220px" onchange="fl.cliSel=this.value; flRender()">${opts}</select></div>`
+    + flTabela('🧾 Estimativa de venda do cliente (próximos 7 dias)', `<th style="text-align:left">Grupo</th>${dias.map(d => `<th>${flRotDia(d)}</th>`).join('')}`, linhas, null, 700)
+    + `<div id="fl-total"></div>` + flNota('A estimativa é por grupo (ex.: Brócolis Granel), sem separar fornecedor. Campo vazio apaga.');
+}
+
+function flTotalVendas() {
+  const dias = flJanela(fl.ref);
+  const linhas = flGruposAtivos().map(g => `<tr><td style="text-align:left;font-weight:600">${flEsc(g.nome)}</td>${dias.map(d => {
+    const t = fl.estAll.filter(x => x.grupo_id === g.id && x.data === d).reduce((s, x) => s + flN(x.quantidade), 0);
+    return `<td>${t ? flFmt(t) : '—'}</td>`;
+  }).join('')}</tr>`).join('');
+  document.getElementById('fl-total').innerHTML = flTabela('Total estimado de todos os clientes', `<th style="text-align:left">Grupo</th>${dias.map(d => `<th>${flRotDia(d)}</th>`).join('')}`, linhas, 'var(--azul)', 700);
+}
+
+async function flSalvarEst(grupoId, dia, v) {
+  if (!fl.cliSel) { mostrarToast('Selecione um cliente', true); return; }
+  try {
+    const mesmo = x => x.cliente_id === fl.cliSel && x.grupo_id === grupoId && x.data === dia;
+    if (String(v).trim() === '') {
+      const { error } = await db.from('fol_estimativa').delete().eq('data', dia).eq('cliente_id', fl.cliSel).eq('grupo_id', grupoId);
+      if (error) throw error;
+      fl.estAll = fl.estAll.filter(x => !mesmo(x));
+    } else {
+      const { data, error } = await db.from('fol_estimativa').upsert({ data: dia, cliente_id: fl.cliSel, grupo_id: grupoId, quantidade: flN(v) }, { onConflict: 'data,cliente_id,grupo_id' }).select().single();
+      if (error) throw error;
+      fl.estAll = fl.estAll.filter(x => !mesmo(x)); fl.estAll.push(data);
+    }
+    flTotalVendas(); mostrarToast('Estimativa salva');
+  } catch (e) { mostrarToast('Erro ao salvar: ' + (e.message || e), true); }
+}
+
+// ---------- Aba Saldo: projeção diária a partir da última contagem ----------
+// saldo(d) = saldo(d-1) + entradas previstas(d) − vendas estimadas(d); o dia da contagem parte do estoque contado (início do dia).
+function flProjecao() {
+  const dias = flJanela(fl.base);
+  return flGruposAtivos().map(g => {
+    const itens = fl.itens.filter(i => i.grupo_id === g.id);
+    const inicial = itens.reduce((s, i) => s + flN((fl.baseContagem[i.id] || {}).quantidade), 0);
+    const contou = itens.some(i => fl.baseContagem[i.id]);
+    let saldo = inicial, primeiroNeg = null;
+    const serie = dias.map(d => {
+      const ent = itens.reduce((s, i) => s + flN((fl.entr[i.id + '|' + d] || {}).quantidade), 0);
+      const ven = fl.estAll.filter(x => x.grupo_id === g.id && x.data === d).reduce((s, x) => s + flN(x.quantidade), 0);
+      saldo = saldo + ent - ven;
+      if (saldo < 0 && !primeiroNeg) primeiroNeg = d;
+      return { d, ent, ven, saldo };
+    });
+    return { g, inicial, contou, serie, final: saldo, primeiroNeg };
+  });
+}
+
+function flHtmlSaldo() {
+  if (!fl.base) return `<div class="loading">Nenhuma contagem de estoque até ${flBR(fl.ref)}. Lance a contagem na aba Folhosas Estoque.</div>`;
+  const dias = flJanela(fl.base), proj = flProjecao();
+  const velha = fl.base < fl.ref ? `<div style="padding:10px 16px;margin-bottom:12px;border-radius:8px;background:rgba(243,146,0,.15);color:var(--laranja);font-size:13px">⚠️ A contagem mais recente é de <b>${flBR(fl.base)}</b>. A projeção parte dela.</div>` : '';
+  const pill = (txt, bg, cor) => `<span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:${bg};color:${cor}">${txt}</span>`;
+  const linhas = proj.map(p => {
+    const cel = p.serie.map(s => `<td style="${s.saldo < 0 ? 'color:var(--vermelho);font-weight:700' : ''}" title="entrada ${flFmt(s.ent)} · venda ${flFmt(s.ven)}">${flFmt(s.saldo)}</td>`).join('');
+    const st = p.final < 0 ? pill('FALTA ' + flFmt(-p.final), 'rgba(220,38,38,.15)', 'var(--vermelho)') : p.final > 0 ? pill('SOBRA ' + flFmt(p.final), 'rgba(243,146,0,.18)', 'var(--laranja)') : pill('OK', 'rgba(28,152,66,.15)', 'var(--verde)');
+    return `<tr><td style="text-align:left;font-weight:600">${flEsc(p.g.nome)}${p.contou ? '' : ' <span title="sem contagem neste grupo" style="color:var(--laranja)">⚠️</span>'}</td><td>${flFmt(p.inicial)}</td>${cel}<td>${st}</td><td>${p.primeiroNeg ? flBR(p.primeiroNeg).slice(0, 5) : '—'}</td></tr>`;
+  }).join('');
+  return velha + flTabela(`⚖️ Saldo projetado, a partir da contagem de ${flBR(fl.base)}`,
+    `<th style="text-align:left">Grupo</th><th>Contagem</th>${dias.map(d => `<th>${flRotDia(d)}</th>`).join('')}<th>Fim</th><th>1º dia negativo</th>`, linhas, null, 860)
+    + flNota('Cada dia mostra o saldo no fim do dia: saldo anterior + entrada prevista − venda estimada (todos os clientes). Passe o mouse sobre um valor para ver a entrada e a venda do dia. Grupos com ⚠️ não tiveram contagem na data base.');
+}
+
 // ===================== NAVEGAÇÃO =====================
 function mudarAba(aba, el) {
   document.querySelectorAll('.secao').forEach(s => s.classList.remove('ativa'));
@@ -1650,6 +1970,10 @@ function mudarAba(aba, el) {
   if (aba === 'relatorios') { preencherSelectClientesRelatorio(); if (!document.getElementById('rel-data-ini').value) inicializarPeriodoRelatorio(); carregarRelatorio(); }
   if (aba === 'custovenda') carregarCustoVenda();
   if (aba === 'rentab') iniciarRentabilidade();
+  if (aba === 'flestoque') flAbrir('estoque');
+  if (aba === 'flentradas') flAbrir('entradas');
+  if (aba === 'flvendas') flAbrir('vendas');
+  if (aba === 'flsaldo') flAbrir('saldo');
   if (aba === 'cadastros') carregarCadastrosUI();
 }
 
