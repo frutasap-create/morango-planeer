@@ -1659,7 +1659,7 @@ const FL_PRODUTOS = ['Brócolis', 'Couve-flor', 'Alface'];
 const FL_SEM = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const FL_DIAS_JANELA = 7;
 const fl = { pronto: false, aba: 'estoque', ref: null, grupos: [], itens: [], clientes: [], cliSel: null,
-  contagem: {}, devol: {}, entr: {}, estAll: [], base: null, baseContagem: {} };
+  contagem: {}, devol: {}, entr: {}, estAll: [], base: null, baseContagem: {}, entrR: {}, vendaR: {} };
 
 function flEsc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function flISO(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
@@ -1696,13 +1696,19 @@ async function flCarregarDados() {
     fl.contagem = {}; (c.data || []).forEach(r => { fl.contagem[r.item_id] = r; });
     fl.devol = {}; (d.data || []).forEach(r => { fl.devol[r.produto] = r; });
   } else if (fl.aba === 'entradas') {
-    const r = await db.from('fol_entrada_prevista').select('*').gte('data', ini).lte('data', fim);
-    if (r.error) throw r.error;
+    const [r, er] = await Promise.all([
+      db.from('fol_entrada_prevista').select('*').gte('data', ini).lte('data', fim),
+      db.from('fol_entrada_real').select('*').eq('data', fl.ref)]);
+    for (const x of [r, er]) if (x.error) throw x.error;
     fl.entr = {}; (r.data || []).forEach(x => { fl.entr[x.item_id + '|' + x.data] = x; });
+    fl.entrR = {}; (er.data || []).forEach(x => { fl.entrR[x.item_id] = x; });
   } else if (fl.aba === 'vendas') {
-    const r = await db.from('fol_estimativa').select('*').gte('data', ini).lte('data', fim);
-    if (r.error) throw r.error;
+    const [r, vr] = await Promise.all([
+      db.from('fol_estimativa').select('*').gte('data', ini).lte('data', fim),
+      db.from('fol_venda_real').select('*').eq('data', fl.ref)]);
+    for (const x of [r, vr]) if (x.error) throw x.error;
     fl.estAll = r.data || [];
+    fl.vendaR = {}; (vr.data || []).forEach(x => { fl.vendaR[x.cliente_id + '|' + x.grupo_id] = x; });
   } else if (fl.aba === 'saldo') {
     const u = await db.from('fol_contagem').select('data').lte('data', fl.ref).order('data', { ascending: false }).limit(1);
     if (u.error) throw u.error;
@@ -1740,14 +1746,15 @@ function flHoje() { fl.ref = flISO(new Date()); flAbrir(fl.aba); }
 
 function flRender() {
   const alvo = document.getElementById('fl-' + fl.aba);
-  const rot = { estoque: 'Data da contagem', entradas: 'Primeiro dia', vendas: 'Primeiro dia', saldo: 'Contagem mais recente até' }[fl.aba];
+  const rot = { estoque: 'Data da contagem', entradas: 'Dia (e início da previsão)', vendas: 'Dia (e início da previsão)', saldo: 'Contagem mais recente até' }[fl.aba];
   const barra = `<div class="tabela-container" style="padding:12px 16px"><div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
     <div><label class="cv-lbl">${rot}</label><input type="date" class="cv-sel" value="${fl.ref}" onchange="flMudarData(this.value)"></div>
     <button class="btn-hoje" style="padding:9px 16px;font-size:13px" onclick="flHoje()">Hoje</button></div></div>`;
   const corpo = { estoque: flHtmlEstoque, entradas: flHtmlEntradas, vendas: flHtmlVendas, saldo: flHtmlSaldo }[fl.aba]();
   alvo.innerHTML = barra + corpo;
   if (fl.aba === 'estoque') flResumoEstoque();
-  if (fl.aba === 'vendas') flTotalVendas();
+  if (fl.aba === 'entradas') flTotEntR();
+  if (fl.aba === 'vendas') { flTotalVendas(); flTotVR(); }
 }
 
 function flInp(onchange, val, w) {
@@ -1864,7 +1871,7 @@ function flHtmlEntradas() {
     const r = fl.entr[i.id + '|' + d];
     return `<td>${flInp(`flSalvarEntrada('${i.id}', '${d}', this.value)`, r ? r.quantidade : '', 78)}</td>`;
   }).join('')}</tr>`).join('');
-  return flTabela('🚚 Entrada prevista por item (próximos 7 dias)', `<th style="text-align:left">Item</th>${dias.map(d => `<th>${flRotDia(d)}</th>`).join('')}`, linhas, 'var(--laranja)', 700)
+  return flHtmlEntradaDia() + flTabela('🚚 Entrada prevista por item (próximos 7 dias)', `<th style="text-align:left">Item</th>${dias.map(d => `<th>${flRotDia(d)}</th>`).join('')}`, linhas, 'var(--laranja)', 700)
     + flNota('Informe o que deve chegar de cada fornecedor/item por dia. Campo vazio apaga a previsão.');
 }
 
@@ -1892,7 +1899,7 @@ function flHtmlVendas() {
     const r = fl.estAll.find(x => x.cliente_id === fl.cliSel && x.grupo_id === g.id && x.data === d);
     return `<td>${flInp(`flSalvarEst('${g.id}', '${d}', this.value)`, r ? r.quantidade : '', 78)}</td>`;
   }).join('')}</tr>`).join('');
-  return `<div class="tabela-container" style="padding:12px 16px"><label class="cv-lbl">Cliente</label>
+  return flHtmlVendaDia() + `<div class="tabela-container" style="padding:12px 16px"><label class="cv-lbl">Cliente (estimativa)</label>
       <select class="cv-sel" style="min-width:220px" onchange="fl.cliSel=this.value; flRender()">${opts}</select></div>`
     + flTabela('🧾 Estimativa de venda do cliente (próximos 7 dias)', `<th style="text-align:left">Grupo</th>${dias.map(d => `<th>${flRotDia(d)}</th>`).join('')}`, linhas, null, 700)
     + `<div id="fl-total"></div>` + flNota('A estimativa é por grupo (ex.: Brócolis Granel), sem separar fornecedor. Campo vazio apaga.');
@@ -1921,6 +1928,78 @@ async function flSalvarEst(grupoId, dia, v) {
       fl.estAll = fl.estAll.filter(x => !mesmo(x)); fl.estAll.push(data);
     }
     flTotalVendas(); mostrarToast('Estimativa salva');
+  } catch (e) { mostrarToast('Erro ao salvar: ' + (e.message || e), true); }
+}
+
+// ---------- Entradas do dia (realizado): fornecedor × grupo ----------
+function flGruposComItem() { return flGruposAtivos().filter(g => flItensAtivos().some(i => i.grupo_id === g.id)); }
+function flFornecedores() { const v = []; flItensAtivos().forEach(i => { const f = i.fornecedor || null; if (!v.includes(f)) v.push(f); }); return v; }
+
+function flHtmlEntradaDia() {
+  const grupos = flGruposComItem();
+  const linhas = flFornecedores().map(f => `<tr><td style="text-align:left;font-weight:600">${flEsc(f || 'Sem fornecedor')}</td>${grupos.map(g => {
+    const it = flItensAtivos().find(i => i.grupo_id === g.id && (i.fornecedor || null) === f);
+    if (!it) return '<td style="color:var(--cinza-escuro)">—</td>';
+    const r = fl.entrR[it.id];
+    return `<td>${flInp(`flSalvarEntR('${it.id}', this.value)`, r ? r.quantidade : '', 78)}</td>`;
+  }).join('')}</tr>`).join('');
+  const tot = `<tr style="font-weight:800"><td style="text-align:left;color:var(--verde)">TOTAL</td>${grupos.map(g => `<td id="fl-er-${g.id}" style="color:var(--verde)">0</td>`).join('')}</tr>`;
+  return flTabela(`📥 Entradas do dia ${flBR(fl.ref)}`, `<th style="text-align:left">Fornecedor</th>${grupos.map(g => `<th>${flEsc(g.nome)}</th>`).join('')}`, linhas + tot, null, 120 + grupos.length * 95);
+}
+
+function flTotEntR() {
+  flGruposComItem().forEach(g => {
+    const t = fl.itens.filter(i => i.grupo_id === g.id).reduce((s, i) => s + flN((fl.entrR[i.id] || {}).quantidade), 0);
+    const el = document.getElementById('fl-er-' + g.id); if (el) el.textContent = flFmt(t);
+  });
+}
+
+async function flSalvarEntR(itemId, v) {
+  try {
+    if (String(v).trim() === '') {
+      const { error } = await db.from('fol_entrada_real').delete().eq('data', fl.ref).eq('item_id', itemId);
+      if (error) throw error;
+      delete fl.entrR[itemId];
+    } else {
+      const { data, error } = await db.from('fol_entrada_real').upsert({ data: fl.ref, item_id: itemId, quantidade: flN(v) }, { onConflict: 'data,item_id' }).select().single();
+      if (error) throw error;
+      fl.entrR[itemId] = data;
+    }
+    flTotEntR(); mostrarToast('Entrada do dia salva');
+  } catch (e) { mostrarToast('Erro ao salvar: ' + (e.message || e), true); }
+}
+
+// ---------- Vendas do dia (realizado): cliente × grupo ----------
+function flHtmlVendaDia() {
+  const grupos = flGruposAtivos();
+  const linhas = fl.clientes.map(c => `<tr><td style="text-align:left;font-weight:600">${flEsc(c.nome)}</td>${grupos.map(g => {
+    const r = fl.vendaR[c.id + '|' + g.id];
+    return `<td>${flInp(`flSalvarVR('${c.id}', '${g.id}', this.value)`, r ? r.quantidade : '', 78)}</td>`;
+  }).join('')}</tr>`).join('');
+  const tot = `<tr style="font-weight:800"><td style="text-align:left;color:var(--verde)">TOTAL</td>${grupos.map(g => `<td id="fl-vr-${g.id}" style="color:var(--verde)">0</td>`).join('')}</tr>`;
+  return flTabela(`📤 Vendas do dia ${flBR(fl.ref)}`, `<th style="text-align:left">Cliente</th>${grupos.map(g => `<th>${flEsc(g.nome)}</th>`).join('')}`, linhas + tot, 'var(--azul)', 140 + grupos.length * 95);
+}
+
+function flTotVR() {
+  flGruposAtivos().forEach(g => {
+    const t = fl.clientes.reduce((s, c) => s + flN((fl.vendaR[c.id + '|' + g.id] || {}).quantidade), 0);
+    const el = document.getElementById('fl-vr-' + g.id); if (el) el.textContent = flFmt(t);
+  });
+}
+
+async function flSalvarVR(cid, gid, v) {
+  try {
+    const k = cid + '|' + gid;
+    if (String(v).trim() === '') {
+      const { error } = await db.from('fol_venda_real').delete().eq('data', fl.ref).eq('cliente_id', cid).eq('grupo_id', gid);
+      if (error) throw error;
+      delete fl.vendaR[k];
+    } else {
+      const { data, error } = await db.from('fol_venda_real').upsert({ data: fl.ref, cliente_id: cid, grupo_id: gid, quantidade: flN(v) }, { onConflict: 'data,cliente_id,grupo_id' }).select().single();
+      if (error) throw error;
+      fl.vendaR[k] = data;
+    }
+    flTotVR(); mostrarToast('Venda do dia salva');
   } catch (e) { mostrarToast('Erro ao salvar: ' + (e.message || e), true); }
 }
 
