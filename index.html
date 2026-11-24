@@ -408,6 +408,16 @@
   .cv-in, .cv-sel { border: 1px solid var(--cinza-escuro); }
   .cv-in:focus, .cv-sel:focus { outline: none; border-color: var(--verde); box-shadow: 0 0 0 2px rgba(28,152,66,0.15); }
   details > summary { color: var(--texto); }
+  .modulos { display: flex; gap: 8px; padding: 10px 20px 8px; overflow-x: auto; position: relative; z-index: 2; background: var(--g-tabs, var(--tabs-bg)); -webkit-backdrop-filter: var(--g-blur); backdrop-filter: var(--g-blur); }
+  .modulo { padding: 7px 16px; border-radius: 6px; border: 1px solid var(--g-border, var(--borda)); background: transparent; color: var(--cinza-escuro); font-size: 14px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+  :root[data-theme=dark] .modulo { color: #cbd5e1; }
+  :root[data-theme=dark] .modulo:hover { background: rgba(96,165,250,.10); }
+  :root[data-theme=dark] .modulo.active { background: rgba(34,211,238,.16); border-color: #22d3ee; color: #22d3ee; text-shadow: 0 0 14px rgba(34,211,238,.45); }
+  :root:not([data-theme=dark]) .modulo { color: #334155; }
+  :root:not([data-theme=dark]) .modulo:hover { background: rgba(37,99,235,.07); color: #1e3a8a; }
+  :root:not([data-theme=dark]) .modulo.active { background: rgba(37,99,235,.12); border-color: #2563eb; color: #1d4ed8; }
+  .tab.oculta { display: none; }
+  @media (max-width: 600px) { .modulos { padding: 8px 12px 6px; } .modulo { padding: 6px 12px; font-size: 13px; } }
 </style>
 </head>
 <body>
@@ -422,23 +432,30 @@
   </div>
 </header>
 
+<div class="modulos" id="modulos">
+  <div class="modulo active" data-mod="morango" onclick="mudarModulo('morango')">🍓 Morango</div>
+  <div class="modulo" data-mod="folhosas" onclick="mudarModulo('folhosas')">🥦 Folhosas</div>
+  <div class="modulo" data-mod="financeiro" onclick="mudarModulo('financeiro')">💰 Financeiro</div>
+  <div class="modulo" data-mod="cadastros" onclick="mudarModulo('cadastros')">⚙️ Cadastros</div>
+</div>
 <div class="tabs">
-  <div class="tab active" onclick="mudarAba('entradas', this)">📥 Entradas</div>
-  <div class="tab" onclick="mudarAba('saidas', this)">📤 Saídas</div>
-  <div class="tab" onclick="mudarAba('estoque', this)">📦 Estoque</div>
-  <div class="tab" onclick="mudarAba('balanco', this)">⚖️ Balanço</div>
-  <div class="tab" onclick="mudarAba('relatorios', this)">📊 Relatórios</div>
-  <div class="tab" onclick="mudarAba('custovenda', this)">💲 Custos Compra x Venda</div>
-  <div class="tab" onclick="mudarAba('rentab', this)">📈 Rentabilidade</div>
-  <div class="tab" onclick="mudarAba('flestoque', this)">🥦 Folhosas Estoque</div>
-  <div class="tab" onclick="mudarAba('flentradas', this)">🚚 Folhosas Entradas</div>
-  <div class="tab" onclick="mudarAba('flvendas', this)">🧾 Folhosas Vendas</div>
-  <div class="tab" onclick="mudarAba('flsaldo', this)">⚖️ Folhosas Saldo</div>
-  <div class="tab" onclick="mudarAba('cadastros', this)">⚙️ Cadastros</div>
+  <div class="tab active" data-mod="morango" onclick="mudarAba('estoque', this)">📦 Estoque</div>
+  <div class="tab" data-mod="morango" onclick="mudarAba('entradas', this)">📥 Entradas</div>
+  <div class="tab" data-mod="morango" onclick="mudarAba('saidas', this)">📤 Saídas</div>
+  <div class="tab" data-mod="morango" onclick="mudarAba('balanco', this)">⚖️ Balanço diário</div>
+  <div class="tab" data-mod="morango" onclick="mudarAba('relatorios', this)">📊 Relatórios</div>
+  <div class="tab oculta" data-mod="folhosas" onclick="mudarAba('flestoque', this)">📦 Estoque inicial</div>
+  <div class="tab oculta" data-mod="folhosas" onclick="mudarAba('flentradas', this)">📥 Entradas</div>
+  <div class="tab oculta" data-mod="folhosas" onclick="mudarAba('flsaidas', this)">📤 Saídas</div>
+  <div class="tab oculta" data-mod="folhosas" onclick="mudarAba('flsaldo', this)">⚖️ Saldo final</div>
+  <div class="tab oculta" data-mod="folhosas" onclick="mudarAba('flprevisao', this)">🔮 Previsão</div>
+  <div class="tab oculta" data-mod="financeiro" onclick="mudarAba('custovenda', this)">💲 Custos Compra x Venda</div>
+  <div class="tab oculta" data-mod="financeiro" onclick="mudarAba('rentab', this)">📈 Rentabilidade</div>
+  <div class="tab oculta" data-mod="cadastros" onclick="mudarAba('cadastros', this)">⚙️ Cadastros</div>
 </div>
 
 <main>
-  <div id="secao-entradas" class="secao ativa">
+  <div id="secao-entradas" class="secao">
     <div class="cards-resumo" id="cards-entradas"></div>
     <!-- GRÁFICO FORNECEDORES -->
     <div class="grafico-h-container">
@@ -466,7 +483,7 @@
     <button class="btn-salvar" onclick="salvarSaidas()" style="background:var(--laranja);">💾 Salvar Saídas</button>
   </div>
 
-  <div id="secao-estoque" class="secao">
+  <div id="secao-estoque" class="secao ativa">
     <div class="cards-resumo" id="cards-estoque-resumo"></div>
     <div id="estoque-conteudo"><div class="loading"><div class="spinner"></div>Calculando estoque...</div></div>
   </div>
@@ -519,12 +536,15 @@
 
   <div id="secao-flentradas" class="secao"><div id="fl-entradas"></div></div>
 
-  <div id="secao-flvendas" class="secao"><div id="fl-vendas"></div></div>
+  <div id="secao-flsaidas" class="secao"><div id="fl-saidas"></div></div>
 
   <div id="secao-flsaldo" class="secao"><div id="fl-saldo"></div></div>
 
+  <div id="secao-flprevisao" class="secao"><div id="fl-previsao"></div></div>
+
   <div id="secao-cadastros" class="secao">
     <div id="cadastros-conteudo"><div class="loading"><div class="spinner"></div>Carregando cadastros...</div></div>
+    <div id="fl-cadastro"></div>
   </div>
 </main>
 
@@ -1659,7 +1679,7 @@ const FL_PRODUTOS = ['Brócolis', 'Couve-flor', 'Alface'];
 const FL_SEM = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const FL_DIAS_JANELA = 7;
 const fl = { pronto: false, aba: 'estoque', ref: null, grupos: [], itens: [], clientes: [], cliSel: null,
-  contagem: {}, devol: {}, entr: {}, estAll: [], base: null, baseContagem: {}, entrR: {}, vendaR: {}, realEnt: [], realVen: [] };
+  contagem: {}, devol: {}, entr: {}, estAll: [], base: null, baseContagem: {}, entrR: {}, vendaR: {}, realEnt: [], realVen: [], saldoSalvo: {} };
 
 function flEsc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function flISO(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
@@ -1696,24 +1716,34 @@ async function flCarregarDados() {
     fl.contagem = {}; (c.data || []).forEach(r => { fl.contagem[r.item_id] = r; });
     fl.devol = {}; (d.data || []).forEach(r => { fl.devol[r.produto] = r; });
   } else if (fl.aba === 'entradas') {
-    const [r, er] = await Promise.all([
-      db.from('fol_entrada_prevista').select('*').gte('data', ini).lte('data', fim),
-      db.from('fol_entrada_real').select('*').eq('data', fl.ref)]);
-    for (const x of [r, er]) if (x.error) throw x.error;
-    fl.entr = {}; (r.data || []).forEach(x => { fl.entr[x.item_id + '|' + x.data] = x; });
+    const [er, ep] = await Promise.all([
+      db.from('fol_entrada_real').select('*').eq('data', fl.ref),
+      db.from('fol_entrada_prevista').select('*').eq('data', fl.ref)]);
+    for (const r of [er, ep]) if (r.error) throw r.error;
     fl.entrR = {}; (er.data || []).forEach(x => { fl.entrR[x.item_id] = x; });
-  } else if (fl.aba === 'vendas') {
-    const [r, vr] = await Promise.all([
-      db.from('fol_estimativa').select('*').gte('data', ini).lte('data', fim),
-      db.from('fol_venda_real').select('*').eq('data', fl.ref)]);
-    for (const x of [r, vr]) if (x.error) throw x.error;
-    fl.estAll = r.data || [];
+    fl.entr = {}; (ep.data || []).forEach(x => { fl.entr[x.item_id + '|' + x.data] = x; });
+  } else if (fl.aba === 'saidas') {
+    const [vr, es] = await Promise.all([
+      db.from('fol_venda_real').select('*').eq('data', fl.ref),
+      db.from('fol_estimativa').select('*').eq('data', fl.ref)]);
+    for (const r of [vr, es]) if (r.error) throw r.error;
     fl.vendaR = {}; (vr.data || []).forEach(x => { fl.vendaR[x.cliente_id + '|' + x.grupo_id] = x; });
+    fl.estAll = es.data || [];
+  } else if (fl.aba === 'previsao') {
+    const [r, v] = await Promise.all([
+      db.from('fol_entrada_prevista').select('*').gte('data', ini).lte('data', fim),
+      db.from('fol_estimativa').select('*').gte('data', ini).lte('data', fim)]);
+    for (const x of [r, v]) if (x.error) throw x.error;
+    fl.entr = {}; (r.data || []).forEach(x => { fl.entr[x.item_id + '|' + x.data] = x; });
+    fl.estAll = v.data || [];
   } else if (fl.aba === 'saldo') {
     const u = await db.from('fol_contagem').select('data').lte('data', fl.ref).order('data', { ascending: false }).limit(1);
     if (u.error) throw u.error;
     fl.base = u.data && u.data[0] ? u.data[0].data : null;
-    fl.baseContagem = {}; fl.entr = {}; fl.estAll = []; fl.realEnt = []; fl.realVen = [];
+    fl.baseContagem = {}; fl.entr = {}; fl.estAll = []; fl.realEnt = []; fl.realVen = []; fl.saldoSalvo = {};
+    const sv = await db.from('fol_saldo_final').select('*').eq('data', fl.ref);
+    if (sv.error) throw sv.error;
+    (sv.data || []).forEach(x => { fl.saldoSalvo[x.grupo_id] = x; });
     if (!fl.base) return;
     const f2 = flSomaDias(fl.base, FL_DIAS_JANELA - 1);
     const [c, e, v, re, rv] = await Promise.all([
@@ -1736,7 +1766,7 @@ async function flAbrir(aba) {
   alvo.innerHTML = '<div class="loading"><div class="spinner"></div>Carregando...</div>';
   try {
     if (!fl.ref) fl.ref = flISO(new Date());
-    if (!fl.pronto || aba === 'estoque') await flCarregarBase();
+    await flCarregarBase();
     await flCarregarDados();
     flRender();
   } catch (e) {
@@ -1749,15 +1779,16 @@ function flHoje() { fl.ref = flISO(new Date()); flAbrir(fl.aba); }
 
 function flRender() {
   const alvo = document.getElementById('fl-' + fl.aba);
-  const rot = { estoque: 'Data da contagem', entradas: 'Dia (e início da previsão)', vendas: 'Dia (e início da previsão)', saldo: 'Contagem mais recente até' }[fl.aba];
+  const rot = { estoque: 'Dia', entradas: 'Dia', saidas: 'Dia', previsao: 'Primeiro dia da previsão', saldo: 'Dia do saldo' }[fl.aba];
   const barra = `<div class="tabela-container" style="padding:12px 16px"><div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
     <div><label class="cv-lbl">${rot}</label><input type="date" class="cv-sel" value="${fl.ref}" onchange="flMudarData(this.value)"></div>
     <button class="btn-hoje" style="padding:9px 16px;font-size:13px" onclick="flHoje()">Hoje</button></div></div>`;
-  const corpo = { estoque: flHtmlEstoque, entradas: flHtmlEntradas, vendas: flHtmlVendas, saldo: flHtmlSaldo }[fl.aba]();
+  const corpo = { estoque: flHtmlEstoqueTela, entradas: flHtmlEntradaDia, saidas: flHtmlVendaDia, previsao: flHtmlPrevisao, saldo: flHtmlSaldo }[fl.aba]();
   alvo.innerHTML = barra + corpo;
   if (fl.aba === 'estoque') flResumoEstoque();
   if (fl.aba === 'entradas') flTotEntR();
-  if (fl.aba === 'vendas') { flTotalVendas(); flTotVR(); }
+  if (fl.aba === 'saidas') flTotVR();
+  if (fl.aba === 'previsao') flTotalVendas();
 }
 
 function flInp(onchange, val, w) {
@@ -1776,13 +1807,21 @@ function flHtmlEstoque() {
     const quem = r ? `${r.enviado_por ? flEsc(r.enviado_por) + ' · ' : ''}${new Date(r.enviado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : '';
     return `<tr><td style="text-align:left;font-weight:600">${flEsc(i.rotulo)}</td><td style="text-align:left">${flEsc(g.nome)}</td><td>${flInp(`flSalvarContagem('${i.id}', this.value)`, r ? r.quantidade : '', 110)}</td><td style="font-size:11px;color:var(--cinza-escuro)">${quem}</td></tr>`;
   }).join('');
-  const dev = FL_PRODUTOS.map(p => `<div><label class="cv-lbl">${p}</label>${flInp(`flSalvarDevol('${p}', this.value)`, fl.devol[p] ? fl.devol[p].quantidade : '', 110)}</div>`).join('');
-  return flTabela(`📦 Estoque contado em ${flBR(fl.ref)}`, '<th style="text-align:left">Item</th><th style="text-align:left">Grupo</th><th>Quantidade</th><th>Enviado</th>', linhas || '<tr><td colspan="4">Nenhum item ativo.</td></tr>', null, 460)
-    + `<div id="fl-resumo"></div>
-    <div class="tabela-container"><div class="tabela-titulo laranja">↩️ Devolução do dia</div><div style="display:flex;gap:16px;flex-wrap:wrap;padding:14px 16px">${dev}</div></div>
-    ${flHtmlItens()}
-    ${flNota('A contagem é o estoque do início do dia, antes das vendas. Os valores salvam ao sair do campo; campo vazio apaga o lançamento. A devolução é só registrada, por enquanto não entra no saldo projetado.')}`;
+  return flTabela(`📦 Estoque inicial — ${flBR(fl.ref)}`, '<th style="text-align:left">Item</th><th style="text-align:left">Grupo</th><th>Quantidade</th><th>Enviado</th>', linhas || '<tr><td colspan="4">Nenhum item ativo.</td></tr>', null, 460)
+    + '<div id="fl-resumo"></div>';
 }
+
+function flHtmlDevol() {
+  const dev = FL_PRODUTOS.map(p => `<div><label class="cv-lbl">${p}</label>${flInp(`flSalvarDevol('${p}', this.value)`, fl.devol[p] ? fl.devol[p].quantidade : '', 110)}</div>`).join('');
+  return `<div class="tabela-container"><div class="tabela-titulo laranja">↩️ Devolução do dia</div><div style="display:flex;gap:16px;flex-wrap:wrap;padding:14px 16px">${dev}</div></div>`;
+}
+
+function flHtmlEstoqueTela() {
+  return flHtmlEstoque() + flHtmlDevol()
+    + flNota('O estoque inicial chega pelo app do colaborador (campo "Enviado"). Se precisar, ajuste aqui. É o estoque do início do dia, antes das vendas. Campo vazio apaga o lançamento. A devolução é só registrada, por enquanto não entra no saldo.');
+}
+
+function flHtmlPrevisao() { return flHtmlEntradas() + flHtmlVendas(); }
 
 function flResumoEstoque() {
   const tot = {};
@@ -1829,7 +1868,7 @@ function flHtmlItens() {
     return `<tr><td style="text-align:left">${flEsc(i.rotulo)}</td><td style="text-align:left">${flEsc(g ? g.nome : '—')}</td><td>${flEsc(i.fornecedor || '—')}</td>
       <td><button class="btn-acao btn-toggle ${i.ativo ? 'ativo' : ''}" onclick="flToggleItem('${i.id}', ${!i.ativo})">${i.ativo ? 'Ativo' : 'Inativo'}</button></td></tr>`;
   }).join('');
-  return `<details class="tabela-container" style="padding:0"><summary style="cursor:pointer;padding:12px 16px;font-weight:700">⚙️ Itens e grupos (cadastro)</summary>
+  return `<details class="cadastro-grupo" open style="padding:0"><summary style="cursor:pointer;padding:12px 16px;font-weight:700">🥦 Folhosas — itens e grupos</summary>
     <div style="padding:0 16px 14px">
       <div class="tabela-scroll"><table style="min-width:420px"><thead><tr><th style="text-align:left">Item (como no WhatsApp)</th><th style="text-align:left">Grupo</th><th>Fornecedor</th><th></th></tr></thead><tbody>${linhas}</tbody></table></div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-top:12px">
@@ -1851,7 +1890,7 @@ async function flAddItem() {
   const ordem = Math.max(0, ...fl.itens.map(i => i.ordem || 0)) + 1;
   const { error } = await db.from('fol_itens').insert({ rotulo: rot, grupo_id: gid, fornecedor: forn || null, ordem });
   if (error) { mostrarToast('Erro: ' + error.message, true); return; }
-  mostrarToast('Item adicionado'); flAbrir('estoque');
+  mostrarToast('Item adicionado'); flRenderCadastro();
 }
 async function flAddGrupo() {
   const nome = document.getElementById('flg-nome').value.trim(), prod = document.getElementById('flg-prod').value;
@@ -1859,12 +1898,12 @@ async function flAddGrupo() {
   const ordem = Math.max(0, ...fl.grupos.map(g => g.ordem || 0)) + 1;
   const { error } = await db.from('fol_grupos').insert({ nome, produto: prod, ordem });
   if (error) { mostrarToast('Erro: ' + error.message, true); return; }
-  mostrarToast('Grupo adicionado'); flAbrir('estoque');
+  mostrarToast('Grupo adicionado'); flRenderCadastro();
 }
 async function flToggleItem(id, ativo) {
   const { error } = await db.from('fol_itens').update({ ativo }).eq('id', id);
   if (error) { mostrarToast('Erro: ' + error.message, true); return; }
-  flAbrir('estoque');
+  flRenderCadastro();
 }
 
 // ---------- Aba Entradas: previsão por item/dia ----------
@@ -1874,7 +1913,7 @@ function flHtmlEntradas() {
     const r = fl.entr[i.id + '|' + d];
     return `<td>${flInp(`flSalvarEntrada('${i.id}', '${d}', this.value)`, r ? r.quantidade : '', 78)}</td>`;
   }).join('')}</tr>`).join('');
-  return flHtmlEntradaDia() + flTabela('🚚 Entrada prevista por item (próximos 7 dias)', `<th style="text-align:left">Item</th>${dias.map(d => `<th>${flRotDia(d)}</th>`).join('')}`, linhas, 'var(--laranja)', 700)
+  return flTabela('🚚 Entrada prevista por item (próximos 7 dias)', `<th style="text-align:left">Item</th>${dias.map(d => `<th>${flRotDia(d)}</th>`).join('')}`, linhas, 'var(--laranja)', 700)
     + flNota('Informe o que deve chegar de cada fornecedor/item por dia. Campo vazio apaga a previsão.');
 }
 
@@ -1902,7 +1941,7 @@ function flHtmlVendas() {
     const r = fl.estAll.find(x => x.cliente_id === fl.cliSel && x.grupo_id === g.id && x.data === d);
     return `<td>${flInp(`flSalvarEst('${g.id}', '${d}', this.value)`, r ? r.quantidade : '', 78)}</td>`;
   }).join('')}</tr>`).join('');
-  return flHtmlVendaDia() + `<div class="tabela-container" style="padding:12px 16px"><label class="cv-lbl">Cliente (estimativa)</label>
+  return `<div class="tabela-container" style="padding:12px 16px"><label class="cv-lbl">Cliente (estimativa)</label>
       <select class="cv-sel" style="min-width:220px" onchange="fl.cliSel=this.value; flRender()">${opts}</select></div>`
     + flTabela('🧾 Estimativa de venda do cliente (próximos 7 dias)', `<th style="text-align:left">Grupo</th>${dias.map(d => `<th>${flRotDia(d)}</th>`).join('')}`, linhas, null, 700)
     + `<div id="fl-total"></div>` + flNota('A estimativa é por grupo (ex.: Brócolis Granel), sem separar fornecedor. Campo vazio apaga.');
@@ -1938,16 +1977,31 @@ async function flSalvarEst(grupoId, dia, v) {
 function flGruposComItem() { return flGruposAtivos().filter(g => flItensAtivos().some(i => i.grupo_id === g.id)); }
 function flFornecedores() { const v = []; flItensAtivos().forEach(i => { const f = i.fornecedor || null; if (!v.includes(f)) v.push(f); }); return v; }
 
+function flPrevEnt(itemId) { const r = fl.entr[itemId + '|' + fl.ref]; return r ? flN(r.quantidade) : 0; }
+
 function flHtmlEntradaDia() {
   const grupos = flGruposComItem();
   const linhas = flFornecedores().map(f => `<tr><td style="text-align:left;font-weight:600">${flEsc(f || 'Sem fornecedor')}</td>${grupos.map(g => {
     const it = flItensAtivos().find(i => i.grupo_id === g.id && (i.fornecedor || null) === f);
     if (!it) return '<td style="color:var(--cinza-escuro)">—</td>';
-    const r = fl.entrR[it.id];
-    return `<td>${flInp(`flSalvarEntR('${it.id}', this.value)`, r ? r.quantidade : '', 78)}</td>`;
+    const r = fl.entrR[it.id], pv = flPrevEnt(it.id);
+    return `<td>${flInp(`flSalvarEntR('${it.id}', this.value)`, r ? r.quantidade : '', 78)}${pv ? `<div style="font-size:10px;color:var(--laranja)">prév. ${flFmt(pv)}</div>` : ''}</td>`;
   }).join('')}</tr>`).join('');
-  const tot = `<tr style="font-weight:800"><td style="text-align:left;color:var(--verde)">TOTAL</td>${grupos.map(g => `<td id="fl-er-${g.id}" style="color:var(--verde)">0</td>`).join('')}</tr>`;
-  return flTabela(`📥 Entradas do dia ${flBR(fl.ref)}`, `<th style="text-align:left">Fornecedor</th>${grupos.map(g => `<th>${flEsc(g.nome)}</th>`).join('')}`, linhas + tot, null, 120 + grupos.length * 95);
+  const prev = `<tr><td style="text-align:left;color:var(--laranja);font-weight:700">PREVISTO</td>${grupos.map(g => `<td style="color:var(--laranja)">${flFmt(fl.itens.filter(i => i.grupo_id === g.id).reduce((a, i) => a + flPrevEnt(i.id), 0))}</td>`).join('')}</tr>`;
+  const tot = `<tr style="font-weight:800"><td style="text-align:left;color:var(--verde)">TOTAL LANÇADO</td>${grupos.map(g => `<td id="fl-er-${g.id}" style="color:var(--verde)">0</td>`).join('')}</tr>`;
+  return flTabela(`📥 Entradas — ${flBR(fl.ref)}`, `<th style="text-align:left">Fornecedor</th>${grupos.map(g => `<th>${flEsc(g.nome)}</th>`).join('')}`, linhas + prev + tot, null, 120 + grupos.length * 95)
+    + `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px"><button class="btn-hoje" style="padding:9px 16px;font-size:13px" onclick="flPreencherEntradas()">Preencher vazios com o previsto</button>
+    <span style="font-size:12px;color:var(--cinza-escuro)">A prévia (em laranja) vem da aba Previsão. Só entra no saldo o que for lançado.</span></div>`;
+}
+
+async function flPreencherEntradas() {
+  try {
+    const linhas = flItensAtivos().filter(i => !fl.entrR[i.id] && flPrevEnt(i.id) > 0).map(i => ({ data: fl.ref, item_id: i.id, quantidade: flPrevEnt(i.id) }));
+    if (!linhas.length) { mostrarToast('Nada para preencher'); return; }
+    const { error } = await db.from('fol_entrada_real').upsert(linhas, { onConflict: 'data,item_id' });
+    if (error) throw error;
+    mostrarToast(linhas.length + ' entrada(s) preenchida(s)'); flAbrir('entradas');
+  } catch (e) { mostrarToast('Erro ao preencher: ' + (e.message || e), true); }
 }
 
 function flTotEntR() {
@@ -1973,14 +2027,30 @@ async function flSalvarEntR(itemId, v) {
 }
 
 // ---------- Vendas do dia (realizado): cliente × grupo ----------
+function flPrevSai(cid, gid) { const r = fl.estAll.find(x => x.cliente_id === cid && x.grupo_id === gid && x.data === fl.ref); return r ? flN(r.quantidade) : 0; }
+
 function flHtmlVendaDia() {
   const grupos = flGruposAtivos();
   const linhas = fl.clientes.map(c => `<tr><td style="text-align:left;font-weight:600">${flEsc(c.nome)}</td>${grupos.map(g => {
-    const r = fl.vendaR[c.id + '|' + g.id];
-    return `<td>${flInp(`flSalvarVR('${c.id}', '${g.id}', this.value)`, r ? r.quantidade : '', 78)}</td>`;
+    const r = fl.vendaR[c.id + '|' + g.id], pv = flPrevSai(c.id, g.id);
+    return `<td>${flInp(`flSalvarVR('${c.id}', '${g.id}', this.value)`, r ? r.quantidade : '', 78)}${pv ? `<div style="font-size:10px;color:var(--laranja)">prév. ${flFmt(pv)}</div>` : ''}</td>`;
   }).join('')}</tr>`).join('');
-  const tot = `<tr style="font-weight:800"><td style="text-align:left;color:var(--verde)">TOTAL</td>${grupos.map(g => `<td id="fl-vr-${g.id}" style="color:var(--verde)">0</td>`).join('')}</tr>`;
-  return flTabela(`📤 Vendas do dia ${flBR(fl.ref)}`, `<th style="text-align:left">Cliente</th>${grupos.map(g => `<th>${flEsc(g.nome)}</th>`).join('')}`, linhas + tot, 'var(--azul)', 140 + grupos.length * 95);
+  const prev = `<tr><td style="text-align:left;color:var(--laranja);font-weight:700">PREVISTO</td>${grupos.map(g => `<td style="color:var(--laranja)">${flFmt(fl.clientes.reduce((a, c) => a + flPrevSai(c.id, g.id), 0))}</td>`).join('')}</tr>`;
+  const tot = `<tr style="font-weight:800"><td style="text-align:left;color:var(--verde)">TOTAL LANÇADO</td>${grupos.map(g => `<td id="fl-vr-${g.id}" style="color:var(--verde)">0</td>`).join('')}</tr>`;
+  return flTabela(`📤 Saídas — ${flBR(fl.ref)}`, `<th style="text-align:left">Cliente</th>${grupos.map(g => `<th>${flEsc(g.nome)}</th>`).join('')}`, linhas + prev + tot, 'var(--azul)', 140 + grupos.length * 95)
+    + `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px"><button class="btn-hoje" style="padding:9px 16px;font-size:13px" onclick="flPreencherSaidas()">Preencher vazios com o previsto</button>
+    <span style="font-size:12px;color:var(--cinza-escuro)">A prévia (em laranja) é a estimativa por cliente da aba Previsão. Só entra no saldo o que for lançado.</span></div>`;
+}
+
+async function flPreencherSaidas() {
+  try {
+    const linhas = [];
+    fl.clientes.forEach(c => flGruposAtivos().forEach(g => { const pv = flPrevSai(c.id, g.id); if (pv > 0 && !fl.vendaR[c.id + '|' + g.id]) linhas.push({ data: fl.ref, cliente_id: c.id, grupo_id: g.id, quantidade: pv }); }));
+    if (!linhas.length) { mostrarToast('Nada para preencher'); return; }
+    const { error } = await db.from('fol_venda_real').upsert(linhas, { onConflict: 'data,cliente_id,grupo_id' });
+    if (error) throw error;
+    mostrarToast(linhas.length + ' saída(s) preenchida(s)'); flAbrir('saidas');
+  } catch (e) { mostrarToast('Erro ao preencher: ' + (e.message || e), true); }
 }
 
 function flTotVR() {
@@ -2044,7 +2114,7 @@ function flSaldoDia() {
 }
 
 function flHtmlSaldo() {
-  if (!fl.base) return `<div class="loading">Nenhuma contagem de estoque até ${flBR(fl.ref)}. Lance a contagem na aba Folhosas Estoque.</div>`;
+  if (!fl.base) return `<div class="loading">Nenhuma contagem de estoque até ${flBR(fl.ref)}. Lance o estoque inicial na aba Estoque inicial.</div>`;
   const dia = flSaldoDia();
   const cor = n => n < 0 ? 'var(--vermelho)' : n === 0 ? 'var(--laranja)' : 'var(--verde)';
   const cards = FL_PRODUTOS.map((prod, k) => {
@@ -2061,12 +2131,12 @@ function flHtmlSaldo() {
   const total = `<tr class="total-row"><td style="text-align:left">TOTAL</td><td>${flFmt(T.i)}</td><td style="color:var(--verde)">+${flFmt(T.e)}</td><td style="color:var(--laranja)">−${flFmt(T.s)}</td><td style="color:var(--azul)">${flFmt(T.f)}</td></tr>`;
   const aviso = fl.base < fl.ref ? flNota(`Estoque inicial = contagem de ${flBR(fl.base)} + entradas − vendas lançadas nos dias seguintes até ontem.`) : '';
   return `<div class="cards-resumo">${cards}</div>`
-    + flTabela(`⚖️ Saldo do dia — ${flBR(fl.ref)}`, '<th style="text-align:left">Grupo</th><th>Estoque inicial</th><th>+ Entradas</th><th>− Saídas</th><th>= Saldo final</th>', linhas + total, 'var(--azul)', 520)
-    + aviso + flHtmlProjecao();
+    + flTabela(`⚖️ Saldo final — ${flBR(fl.ref)}`, '<th style="text-align:left">Grupo</th><th>Estoque inicial</th><th>+ Entradas</th><th>− Saídas</th><th>= Saldo final</th>', linhas + total, 'var(--azul)', 520)
+    + flBlocoSalvar(dia) + aviso + flHtmlProjecao();
 }
 
 function flHtmlProjecao() {
-  if (!fl.base) return `<div class="loading">Nenhuma contagem de estoque até ${flBR(fl.ref)}. Lance a contagem na aba Folhosas Estoque.</div>`;
+  if (!fl.base) return `<div class="loading">Nenhuma contagem de estoque até ${flBR(fl.ref)}. Lance o estoque inicial na aba Estoque inicial.</div>`;
   const dias = flJanela(fl.base), proj = flProjecao();
   const velha = fl.base < fl.ref ? `<div style="padding:10px 16px;margin-bottom:12px;border-radius:8px;background:rgba(243,146,0,.15);color:var(--laranja);font-size:13px">⚠️ A contagem mais recente é de <b>${flBR(fl.base)}</b>. A projeção parte dela.</div>` : '';
   const pill = (txt, bg, cor) => `<span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:${bg};color:${cor}">${txt}</span>`;
@@ -2078,6 +2148,43 @@ function flHtmlProjecao() {
   return velha + flTabela(`🔮 Projeção dos próximos dias, a partir da contagem de ${flBR(fl.base)}`,
     `<th style="text-align:left">Grupo</th><th>Contagem</th>${dias.map(d => `<th>${flRotDia(d)}</th>`).join('')}<th>Fim</th><th>1º dia negativo</th>`, linhas, null, 860)
     + flNota('Cada dia mostra o saldo no fim do dia: saldo anterior + entrada prevista − venda estimada (todos os clientes). Passe o mouse sobre um valor para ver a entrada e a venda do dia. Grupos com ⚠️ não tiveram contagem na data base.');
+}
+
+
+async function flRenderCadastro() {
+  const el = document.getElementById('fl-cadastro');
+  if (!el) return;
+  try { await flCarregarBase(); el.innerHTML = flHtmlItens(); }
+  catch (e) { el.innerHTML = `<div class="loading">Erro ao carregar itens de folhosas: ${flEsc(e.message || e)}</div>`; }
+}
+
+function flBlocoSalvar(dia) {
+  const salvos = dia.map(x => fl.saldoSalvo[x.g.id]).filter(Boolean);
+  let status = 'Ainda não salvo para este dia.';
+  if (salvos.length) {
+    const igual = dia.every(x => { const r = fl.saldoSalvo[x.g.id]; return r && flN(r.saldo_final) === x.saldo && flN(r.estoque_inicial) === x.inicial && flN(r.entradas) === x.ent && flN(r.saidas) === x.sai; });
+    const hora = new Date(Math.max(...salvos.map(r => new Date(r.salvo_em).getTime()))).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    status = igual ? `✅ Saldo final salvo em ${hora}. O app do colaborador lê este valor.` : `⚠️ Salvo em ${hora}, mas os valores mudaram desde então. Salve de novo.`;
+  }
+  return `<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:16px"><button class="btn-salvar" style="background:#1565c0;margin:0" onclick="flSalvarSaldo()">💾 Salvar saldo final do dia</button><span style="font-size:13px;color:var(--cinza-escuro)">${status}</span></div>`;
+}
+
+async function flSalvarSaldo() {
+  try {
+    const linhas = flSaldoDia().map(x => ({ data: fl.ref, grupo_id: x.g.id, estoque_inicial: x.inicial, entradas: x.ent, saidas: x.sai, saldo_final: x.saldo, salvo_em: new Date().toISOString() }));
+    const { data, error } = await db.from('fol_saldo_final').upsert(linhas, { onConflict: 'data,grupo_id' }).select();
+    if (error) throw error;
+    fl.saldoSalvo = {}; (data || []).forEach(x => { fl.saldoSalvo[x.grupo_id] = x; });
+    flRender(); mostrarToast('Saldo final salvo');
+  } catch (e) { mostrarToast('Erro ao salvar saldo: ' + (e.message || e), true); }
+}
+// ===================== MÓDULOS =====================
+function mudarModulo(m) {
+  document.querySelectorAll('.modulo').forEach(x => x.classList.toggle('active', x.dataset.mod === m));
+  const tabs = [...document.querySelectorAll('.tabs .tab')];
+  tabs.forEach(t => t.classList.toggle('oculta', t.dataset.mod !== m));
+  const primeira = tabs.find(t => t.dataset.mod === m);
+  if (primeira) primeira.click();
 }
 
 // ===================== NAVEGAÇÃO =====================
@@ -2093,9 +2200,10 @@ function mudarAba(aba, el) {
   if (aba === 'rentab') iniciarRentabilidade();
   if (aba === 'flestoque') flAbrir('estoque');
   if (aba === 'flentradas') flAbrir('entradas');
-  if (aba === 'flvendas') flAbrir('vendas');
+  if (aba === 'flsaidas') flAbrir('saidas');
   if (aba === 'flsaldo') flAbrir('saldo');
-  if (aba === 'cadastros') carregarCadastrosUI();
+  if (aba === 'flprevisao') flAbrir('previsao');
+  if (aba === 'cadastros') { carregarCadastrosUI(); flRenderCadastro(); }
 }
 
 // ===================== TOAST =====================
