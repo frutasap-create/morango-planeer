@@ -1659,7 +1659,7 @@ const FL_PRODUTOS = ['Brócolis', 'Couve-flor', 'Alface'];
 const FL_SEM = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const FL_DIAS_JANELA = 7;
 const fl = { pronto: false, aba: 'estoque', ref: null, grupos: [], itens: [], clientes: [], cliSel: null,
-  contagem: {}, devol: {}, entr: {}, estAll: [], base: null, baseContagem: {}, entrR: {}, vendaR: {} };
+  contagem: {}, devol: {}, entr: {}, estAll: [], base: null, baseContagem: {}, entrR: {}, vendaR: {}, realEnt: [], realVen: [] };
 
 function flEsc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function flISO(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
@@ -1713,14 +1713,17 @@ async function flCarregarDados() {
     const u = await db.from('fol_contagem').select('data').lte('data', fl.ref).order('data', { ascending: false }).limit(1);
     if (u.error) throw u.error;
     fl.base = u.data && u.data[0] ? u.data[0].data : null;
-    fl.baseContagem = {}; fl.entr = {}; fl.estAll = [];
+    fl.baseContagem = {}; fl.entr = {}; fl.estAll = []; fl.realEnt = []; fl.realVen = [];
     if (!fl.base) return;
     const f2 = flSomaDias(fl.base, FL_DIAS_JANELA - 1);
-    const [c, e, v] = await Promise.all([
+    const [c, e, v, re, rv] = await Promise.all([
       db.from('fol_contagem').select('*').eq('data', fl.base),
       db.from('fol_entrada_prevista').select('*').gte('data', fl.base).lte('data', f2),
-      db.from('fol_estimativa').select('*').gte('data', fl.base).lte('data', f2)]);
-    for (const r of [c, e, v]) if (r.error) throw r.error;
+      db.from('fol_estimativa').select('*').gte('data', fl.base).lte('data', f2),
+      db.from('fol_entrada_real').select('*').gte('data', fl.base).lte('data', fl.ref),
+      db.from('fol_venda_real').select('*').gte('data', fl.base).lte('data', fl.ref)]);
+    for (const r of [c, e, v, re, rv]) if (r.error) throw r.error;
+    fl.realEnt = re.data || []; fl.realVen = rv.data || [];
     (c.data || []).forEach(r => { fl.baseContagem[r.item_id] = r; });
     (e.data || []).forEach(x => { fl.entr[x.item_id + '|' + x.data] = x; });
     fl.estAll = v.data || [];
@@ -2023,7 +2026,46 @@ function flProjecao() {
   });
 }
 
+// ---------- Saldo do dia: estoque inicial + entradas − saídas (igual à aba Estoque do Morango) ----------
+// Estoque inicial = contagem mais recente (até o dia) + entradas − saídas realizadas nos dias entre a contagem e o dia.
+function flSaldoDia() {
+  const ref = fl.ref;
+  return flGruposAtivos().map(g => {
+    const itens = fl.itens.filter(i => i.grupo_id === g.id).map(i => i.id);
+    const base = itens.reduce((s, id) => s + flN((fl.baseContagem[id] || {}).quantidade), 0);
+    const entre = x => x.data >= fl.base && x.data < ref;
+    const roll = fl.realEnt.filter(x => itens.includes(x.item_id) && entre(x)).reduce((s, x) => s + flN(x.quantidade), 0)
+      - fl.realVen.filter(x => x.grupo_id === g.id && entre(x)).reduce((s, x) => s + flN(x.quantidade), 0);
+    const ent = fl.realEnt.filter(x => itens.includes(x.item_id) && x.data === ref).reduce((s, x) => s + flN(x.quantidade), 0);
+    const sai = fl.realVen.filter(x => x.grupo_id === g.id && x.data === ref).reduce((s, x) => s + flN(x.quantidade), 0);
+    const inicial = base + roll;
+    return { g, inicial, ent, sai, saldo: inicial + ent - sai, contou: itens.some(id => fl.baseContagem[id]) };
+  });
+}
+
 function flHtmlSaldo() {
+  if (!fl.base) return `<div class="loading">Nenhuma contagem de estoque até ${flBR(fl.ref)}. Lance a contagem na aba Folhosas Estoque.</div>`;
+  const dia = flSaldoDia();
+  const cor = n => n < 0 ? 'var(--vermelho)' : n === 0 ? 'var(--laranja)' : 'var(--verde)';
+  const cards = FL_PRODUTOS.map((prod, k) => {
+    const l = dia.filter(x => x.g.produto === prod);
+    const t = l.reduce((a, x) => ({ i: a.i + x.inicial, e: a.e + x.ent, s: a.s + x.sai, f: a.f + x.saldo }), { i: 0, e: 0, s: 0, f: 0 });
+    return `<div class="card-resumo ${['', 'laranja', 'azul'][k]}"><div class="top"><span class="label">Total ${prod}</span></div>
+      <div class="valor" style="${t.f < 0 ? 'color:var(--vermelho)' : ''}">${flFmt(t.f)}</div>
+      <div style="font-size:11px;color:var(--cinza-escuro);margin-top:4px">${flFmt(t.i)} + ${flFmt(t.e)} − ${flFmt(t.s)}</div></div>`;
+  }).join('');
+  const linhas = dia.map(x => `<tr><td style="text-align:left;font-weight:600">${flEsc(x.g.nome)}${x.contou ? '' : ' <span title="sem contagem neste grupo" style="color:var(--laranja)">⚠️</span>'}</td>
+    <td>${flFmt(x.inicial)}</td><td style="color:var(--verde);font-weight:700">+${flFmt(x.ent)}</td><td style="color:var(--laranja);font-weight:700">−${flFmt(x.sai)}</td>
+    <td style="color:${cor(x.saldo)};font-weight:800;font-size:15px">${flFmt(x.saldo)}</td></tr>`).join('');
+  const T = dia.reduce((a, x) => ({ i: a.i + x.inicial, e: a.e + x.ent, s: a.s + x.sai, f: a.f + x.saldo }), { i: 0, e: 0, s: 0, f: 0 });
+  const total = `<tr class="total-row"><td style="text-align:left">TOTAL</td><td>${flFmt(T.i)}</td><td style="color:var(--verde)">+${flFmt(T.e)}</td><td style="color:var(--laranja)">−${flFmt(T.s)}</td><td style="color:var(--azul)">${flFmt(T.f)}</td></tr>`;
+  const aviso = fl.base < fl.ref ? flNota(`Estoque inicial = contagem de ${flBR(fl.base)} + entradas − vendas lançadas nos dias seguintes até ontem.`) : '';
+  return `<div class="cards-resumo">${cards}</div>`
+    + flTabela(`⚖️ Saldo do dia — ${flBR(fl.ref)}`, '<th style="text-align:left">Grupo</th><th>Estoque inicial</th><th>+ Entradas</th><th>− Saídas</th><th>= Saldo final</th>', linhas + total, 'var(--azul)', 520)
+    + aviso + flHtmlProjecao();
+}
+
+function flHtmlProjecao() {
   if (!fl.base) return `<div class="loading">Nenhuma contagem de estoque até ${flBR(fl.ref)}. Lance a contagem na aba Folhosas Estoque.</div>`;
   const dias = flJanela(fl.base), proj = flProjecao();
   const velha = fl.base < fl.ref ? `<div style="padding:10px 16px;margin-bottom:12px;border-radius:8px;background:rgba(243,146,0,.15);color:var(--laranja);font-size:13px">⚠️ A contagem mais recente é de <b>${flBR(fl.base)}</b>. A projeção parte dela.</div>` : '';
@@ -2033,7 +2075,7 @@ function flHtmlSaldo() {
     const st = p.final < 0 ? pill('FALTA ' + flFmt(-p.final), 'rgba(220,38,38,.15)', 'var(--vermelho)') : p.final > 0 ? pill('SOBRA ' + flFmt(p.final), 'rgba(243,146,0,.18)', 'var(--laranja)') : pill('OK', 'rgba(28,152,66,.15)', 'var(--verde)');
     return `<tr><td style="text-align:left;font-weight:600">${flEsc(p.g.nome)}${p.contou ? '' : ' <span title="sem contagem neste grupo" style="color:var(--laranja)">⚠️</span>'}</td><td>${flFmt(p.inicial)}</td>${cel}<td>${st}</td><td>${p.primeiroNeg ? flBR(p.primeiroNeg).slice(0, 5) : '—'}</td></tr>`;
   }).join('');
-  return velha + flTabela(`⚖️ Saldo projetado, a partir da contagem de ${flBR(fl.base)}`,
+  return velha + flTabela(`🔮 Projeção dos próximos dias, a partir da contagem de ${flBR(fl.base)}`,
     `<th style="text-align:left">Grupo</th><th>Contagem</th>${dias.map(d => `<th>${flRotDia(d)}</th>`).join('')}<th>Fim</th><th>1º dia negativo</th>`, linhas, null, 860)
     + flNota('Cada dia mostra o saldo no fim do dia: saldo anterior + entrada prevista − venda estimada (todos os clientes). Passe o mouse sobre um valor para ver a entrada e a venda do dia. Grupos com ⚠️ não tiveram contagem na data base.');
 }
